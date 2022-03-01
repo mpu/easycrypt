@@ -833,6 +833,7 @@ let process_rewrite1_r ttenv ?target ri tc =
       let subenv = EcEnv.Memory.push_active mem env in
       let equiv = EcFol.destr_equivF lem.ax_spec in
       let proc = EcEnv.Fun.by_xpath equiv.ef_fl env in
+      (** FIXME: This seems to leave some types open **)
       let args, _ =
         let ue = EcUnify.UniEnv.create (Some []) in
         EcTyping.trans_args subenv ue (loc args) proc.f_sig (unloc args) in
@@ -867,7 +868,7 @@ let process_rewrite1_r ttenv ?target ri tc =
       let progr = EcModules.s_call (Some lv, equiv.ef_fr, args) in
 
       (* TODO: This works only for side {1} *)
-      (* Should we use - for the other direction, and use symmetry to implement it? *)
+      (* Use {2} for `symmetry; rewrite equiv [{1} ...]` *)
       let tc =
         EcPhlTrans.t_equivS_trans
            (EcMemory.memtype mem, progl)
@@ -892,6 +893,13 @@ let process_rewrite1_r ttenv ?target ri tc =
           fp_args = []; } in
       let tc =
         t_onselect p (t_seq (EcPhlCall.process_call None pterm) process_done) tc in
+
+      (* Two more goals (1 and 4) can be solved in general (with the same proof):
+       * - move=> &1 &2 H; exists var1{1} var2{1} ... varn{1}; split.
+       * - reflexivity, then if that fails and there is more than one variable,
+       *   congr and repeat on all subgoals;
+       * - last goal will normally be `exact: H.`
+       *)
 
       let p = process_tfocus tc (Some [Some 3, Some 3], None) in
       let tc =
