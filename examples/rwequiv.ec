@@ -42,19 +42,31 @@ by inline *; auto=> /#.
 qed.
 
 pred P. pred Q.
+axiom PQ: P => Q.
+
 require Distr.
 equiv eq2: BiSample.sample ~ Prod.sample: arg{2} = arg{1} /\ P ==> res{2} = res{1} /\ Q.
 proof.
 proc.
-rewrite equiv [{1} 1 eq (dt, du) (t,u)].
+rewrite equiv [{1} 1 eq (dt, du) (t,u)]=> //.
 + move=> &1 &2 H; exists dt{1} du{1}; split.
   + congr; try reflexivity.
   exact: H.
 + move=> &1 &2 H; exists dt{1} du{1}; split.
   + reflexivity.
   exact: H.
-inline *; auto=> />.
-inline *; wp.
-conseq (: ={tu})=> [/#|].
-by sim.
+by inline *; auto=> /> &1 /PQ /#.
+qed.
+
+equiv eq3: Prod.sample ~ BiSample.sample: arg{2} = arg{1} /\ P ==> res{2} = res{1} /\ Q.
+proof.
+proc.
+rewrite equiv [{2} 1 eq (dt, du) (t,u)]=> //.
++ move=> &1 &2 H; exists dt{1} du{1}; split.
+  + congr; try reflexivity.
+  exact: H.
++ move=> &1 &2 H; exists dt{1} du{1}; split.
+  + reflexivity.
+  exact: H.
+by inline *; auto=> /> &1 /PQ /#.
 qed.

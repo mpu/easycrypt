@@ -825,15 +825,20 @@ let process_rewrite1_r ttenv ?target ri tc =
       process_algebra `Solve `Field [] tc
 
   | RWEquiv (side, _pos, name, args, res) ->
+      let tc = match side with
+        | `Left  -> tc
+        | `Right -> as_tcenv1 (EcPhlSym.t_equiv_sym tc)
+      in
+
       let env, _, goal = FApi.tc1_eflat tc in
       let goal = EcFol.destr_equivS goal in
       let _, lem = EcEnv.Ax.lookup (unloc name) env in
       assert (List.is_empty lem.ax_tparams);
-      let mem = match side with `Left -> goal.es_ml | `Right -> goal.es_mr in
+      let mem = goal.es_ml in
       let subenv = EcEnv.Memory.push_active mem env in
       let equiv = EcFol.destr_equivF lem.ax_spec in
       let proc = EcEnv.Fun.by_xpath equiv.ef_fl env in
-      (** FIXME: This seems to leave some types open **)
+      (* FIXME: This seems to leave some types open **)
       let args, _ =
         let ue = EcUnify.UniEnv.create (Some []) in
         EcTyping.trans_args subenv ue (loc args) proc.f_sig (unloc args) in
@@ -867,8 +872,6 @@ let process_rewrite1_r ttenv ?target ri tc =
       let progl = EcModules.s_call (Some lv, equiv.ef_fl, args) in
       let progr = EcModules.s_call (Some lv, equiv.ef_fr, args) in
 
-      (* TODO: This works only for side {1} *)
-      (* Use {2} for `symmetry; rewrite equiv [{1} ...]` *)
       let tc =
         EcPhlTrans.t_equivS_trans
            (EcMemory.memtype mem, progl)
