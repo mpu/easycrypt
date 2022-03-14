@@ -6,23 +6,33 @@
  * Distributed under the terms of the CeCILL-B-V1 license
  * -------------------------------------------------------------------- *)
 
-require import AllCore StdRing StdOrder Distr List FSet.
+require import AllCore IntDiv StdRing StdOrder Distr List FSet.
 (*---*) import RField RealOrder.
-require (*  *) CyclicGroup.
 
-clone export CyclicGroup as G.
+(** The group **)
+require (*--*) Group.
+
+clone export Group.CyclicGroup.
+
+(* The group has order p *)
+axiom prime_order: prime order.
+
+clone export PowZMod
+proof
+  prime_order by rewrite prime_order.
+export ZModE ZModE.DZmodP.
 
 theory DDH.
 
   module type Adversary = {
-    proc guess(gx gy gz:G.group): bool
+    proc guess(gx gy gz:group): bool
   }.
 
   module DDH0 (A:Adversary) = {
     proc main() : bool = {
       var b, x, y;
-      x <$ FDistr.dt;
-      y <$ FDistr.dt;
+      x <$ dunifin;
+      y <$ dunifin;
       b <@ A.guess(g ^ x, g ^ y, g ^ (x*y));
       return b;
     }
@@ -32,9 +42,9 @@ theory DDH.
     proc main() : bool = {
       var b, x, y, z;
 
-      x <$ FDistr.dt;
-      y <$ FDistr.dt;
-      z <$ FDistr.dt;
+      x <$ dunifin;
+      y <$ dunifin;
+      z <$ dunifin;
       b <@ A.guess(g ^ x, g ^ y, g ^ z);
       return b;
     }
@@ -53,8 +63,8 @@ theory CDH.
     proc main(): bool = {
       var x, y, r;
 
-      x <$ FDistr.dt;
-      y <$ FDistr.dt;
+      x <$ dunifin;
+      y <$ dunifin;
       r <@ A.solve(g ^ x, g ^ y);
       return (r = g ^ (x * y));
     }
@@ -73,10 +83,10 @@ theory List_CDH.
     proc main(): bool = {
       var x, y, s;
 
-      x <$ FDistr.dt;
-      y <$ FDistr.dt;
+      x <$ dunifin;
+      y <$ dunifin;
       s <@ B.solve(g ^ x, g ^ y);
-      return (mem s (g ^ (x * y)) /\ size s <= n);
+      return (g ^ (x * y) \in s /\ size s <= n);
     }
   }.
 
@@ -95,13 +105,13 @@ theory List_CDH.
     declare module A <: Adversary.
 
     local module LCDH' = {
-      var x, y: F.t
+      var x, y: exp
 
       proc aux(): group list = {
         var s;
 
-        x <$ FDistr.dt;
-        y <$ FDistr.dt;
+        x <$ dunifin;
+        y <$ dunifin;
         s <@ A.solve(g ^ x, g ^ y);
         return s;
       }
@@ -143,11 +153,11 @@ theory List_CDH.
            - the probability that s contains g^(x*y) and that |s| <= n is Pr[LCDH(A).main() @ &m: res], and
            - when s contains g^(x*y), the probability of sampling that one element uniformly in s is bounded
              by 1/n. *)
-      seq  1: (mem s (g ^ (LCDH'.x * LCDH'.y)) /\ size s <= n) p (1%r/n%r) _ 0%r => //.
+      seq  1: (g ^ (LCDH'.x * LCDH'.y) \in s /\ size s <= n) p (1%r/n%r) _ 0%r => //.
         (* The first part is dealt with by equivalence with LCDH. *)
         conseq (_: _: =p). (* strengthening >= into = for simplicity*)
         call (_: (glob A) = (glob A){m}  ==> 
-                   mem res (g^(LCDH'.x * LCDH'.y)) /\ size res <= n)=> //.
+                   g^(LCDH'.x * LCDH'.y) \in res /\ size res <= n)=> //.
         bypr; progress; rewrite /p.
         byequiv (_: )=> //.
         by proc *; inline *; wp; call (_: true); auto.
@@ -175,10 +185,10 @@ theory Set_CDH.
     proc main(): bool = {
       var x, y, s;
 
-      x <$ FDistr.dt;
-      y <$ FDistr.dt;
+      x <$ dunifin;
+      y <$ dunifin;
       s <@ B.solve(g ^ x, g ^ y);
-      return (mem s (g ^ (x * y)) /\ card s <= n);
+      return (g ^ (x * y) \in s /\ card s <= n);
     }
   }.
 

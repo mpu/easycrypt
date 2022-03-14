@@ -6,12 +6,26 @@
  * Distributed under the terms of the CeCILL-B-V1 license
  * -------------------------------------------------------------------- *)
 
-require import CyclicGroup DBool SmtMap FSet DList Int List.
+require import AllCore IntDiv List FSet SmtMap.
+require import DBool DList.
+
+(** The group **)
+require (*--*) Group.
+
+clone export Group.CyclicGroup.
+
+(* The group has order p *)
+axiom prime_order: prime order.
+
+clone export PowZMod
+proof
+  prime_order by rewrite prime_order.
+export ZModE ZModE.DZmodP.
 
 (* Multiple Oracle-DH *)
 
 type range.
-type secret = t.
+type secret = exp.
 
 (* A hash function with domain consistent with group type *)
 op hash : group -> range.
@@ -49,12 +63,12 @@ module ODH_Orcl : ODH_OrclT = {
     rorList <- fset0;
     count_gen <- 0;
     count_ror <- 0;
- }
+  }
 
- proc gen() = {
+  proc gen() = {
     var y,gy;
     
-    y <$FDistr.dt;
+    y <$ dunifin;
     gy <- witness;
 
     if (count_gen < q_gen) {
@@ -68,54 +82,52 @@ module ODH_Orcl : ODH_OrclT = {
     }
 
     return gy;
- }
+  }
 
- proc ror(gys : group fset) : (group * (group * range)) list option = {
-   var rhs, hs, gylist, gygxlist, keys, n_keys, x, gx;
+  proc ror(gys : group fset) : (group * (group * range)) list option = {
+    var rhs, hs, gylist, gygxlist, keys, n_keys, x, gx;
 
-   rhs <- None;
+    rhs <- None;
 
-   gylist <- elems gys;
-   n_keys <- size gylist;
+    gylist <- elems gys;
+    n_keys <- size gylist;
 
-   x <$ FDistr.dt;
-   keys <$ dlist genRange n_keys;
+    x <$ dunifin;
+    keys <$ dlist genRange n_keys;
 
-   gx <- g ^ x;
+    gx <- g ^ x;
 
-   if (count_ror < q_ror) {
-     if (gys \subset (fdom genMap)) {
+    if (count_ror < q_ror) {
+      if (gys \subset (fdom genMap)) {
         gygxlist <- map (fun gy => (gy,gx)) gylist;
         rorList <- rorList `|` oflist gygxlist;
         hs <- amap (fun k v => if b then (gx, v) else (gx, hash (k^x)))
                    (zip gylist keys);
         rhs <- Some hs;
-     }
-     count_ror <- count_ror + 1;
-   }
-   return rhs;
- }
+      }
+      count_ror <- count_ror + 1;
+    }
+    return rhs;
+  }
 
- proc hash(gy: group, val : group) : range option = {
-   var h, y;
-   h <- None;
+  proc hash(gy: group, val : group) : range option = {
+    var h, y;
+    h <- None;
 
-   if (gy \in genMap /\ (!(gy,val) \in rorList)) {
-     y <- oget genMap.[gy];
-     h <- Some (hash (val^y));
-   }
-   return h;
- }
+    if (gy \in genMap /\ (!(gy,val) \in rorList)) {
+      y <- oget genMap.[gy];
+      h <- Some (hash (val^y));
+    }
+    return h;
+  }
 }.
 
 module ODH_Sec (A : ODH_Adv) = {
-  module O = ODH_Orcl
-
   proc game (b: bool)  = {
     var b';
 
-    O.init(b);
-    b' <@ A(O).guess();
+    ODH_Orcl.init(b);
+    b' <@ A(ODH_Orcl).guess();
     
     return (b = b');
   }

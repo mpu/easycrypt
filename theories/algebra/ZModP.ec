@@ -254,7 +254,8 @@ const p : { int | prime p } as prime_p.
 
 clone include ZModRing with
   op    p <- p
-  proof ge2_p by smt(gt1_prime prime_p).
+proof ge2_p by smt(gt1_prime prime_p)
+remove abbrev (-) (/).
 
 lemma unitE (x : zmod) : (unit x) <=> (x <> zero).
 proof.
@@ -274,7 +275,8 @@ clone import Ring.Field as ZModpField with
   op   [ - ] <- ([-]),
   op   ( * ) <- ( * ),
   op   invr  <- inv
-  proof *.
+proof *
+remove abbrev (-) (/).
 
 realize addrA.     proof. by apply/ZModule.addrA. qed.
 realize addrC.     proof. by apply/ZModule.addrC. qed.
@@ -302,6 +304,9 @@ move=> nz_x; split=> [|->]; last by rewrite ZModpRing.mulr0.
 move=> h; apply: (ZModpRing.mulrI x); last by rewrite ZModpRing.mulr0.
 by rewrite unitE.
 qed.
+
+abbrev (-) (x y : zmod) = x + -y.
+abbrev (/) (x y : zmod) = x * inv y.
 
 (* -------------------------------------------------------------------- *)
 instance field with zmod

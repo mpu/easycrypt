@@ -20,10 +20,10 @@ op qH: { int | 0 < qH } as gt0_qH.
 (* Assumption: Set CDH *)
 clone import DiffieHellman.Set_CDH as SCDH with
   op n <- qH.
-import DiffieHellman G FDistr.
+import DiffieHellman.
 
 type pkey = group.
-type skey = t.
+type skey = exp.
 type ptxt = bits.
 type ctxt = group * bits.
 
@@ -45,14 +45,14 @@ module Hashed_ElGamal (H:Hash): Scheme = {
     var sk;
 
     H.init();
-    sk <$ dt;
+    sk <$ dunifin;
     return (g ^ sk, sk);
   }
 
   proc enc(pk:pkey, m:ptxt): ctxt = {
     var y, h;
 
-    y <$ dt;
+    y <$ dunifin;
     h <@ H.hash(pk ^ y);
     return (g ^ y, h +^ m);
   }
@@ -124,8 +124,8 @@ section.
       var x, y, h, gx;
 
       H.init();
-      x       <$ dt;
-      y       <$ dt;
+      x       <$ dunifin;
+      y       <$ dunifin;
       gx      <- g ^ x;
       gxy     <- gx ^ y;
       (m0,m1) <@ BA.choose(gx);
@@ -160,8 +160,8 @@ section.
       var x, y, h, gx, gxy;
 
       H.init();
-      x       <$ dt;
-      y       <$ dt;
+      x       <$ dunifin;
+      y       <$ dunifin;
       gx      <- g ^ x;
       gxy     <- gx ^ y;
       (m0,m1) <@ BA.choose(gx);
@@ -181,8 +181,8 @@ section.
       var x, y, h, gx;
 
       H.init();
-      x       <$ dt;
-      y       <$ dt;
+      x       <$ dunifin;
+      y       <$ dunifin;
       gx      <- g ^ x;
       gxy     <- gx ^ y;
       (m0,m1) <@ BA.choose(gx);
@@ -197,15 +197,15 @@ section.
   local module (D : ROC.Dist) (H : POracle) = {
     module A = A(H)
 
-    var y:t
+    var y:exp
     var b:bool
     var m0, m1:ptxt
 
     proc a1(): group = {
       var x, gxy, gx;
 
-      x       <$ dt;
-      y       <$ dt;
+      x       <$ dunifin;
+      y       <$ dunifin;
       gx      <- g ^ x;
       gxy     <- gx ^ y;
       (m0,m1) <@ A.choose(gx);
@@ -255,7 +255,7 @@ section.
   rewrite (G0_D &m) (G1_D &m) (G2_D &m).
   move: (OnBound.ROM_BadCall D _ _ _ &m tt true).
   + move=> H H_o_ll; proc; auto; call (choose_ll H _)=> //; auto=> />.
-    by rewrite dt_ll DBool.dbool_ll.
+    by rewrite dunifin_ll DBool.dbool_ll.
   + by move=> H H_o_ll; proc; auto; call (guess_ll H _)=> //; auto=> />.
   + by move=> _; apply: dbits_ll.
   by rewrite !eqT.
@@ -267,8 +267,8 @@ section.
       var x, y, h, gx, gxy;
 
       H.init();
-      x       <$ dt;
-      y       <$ dt;
+      x       <$ dunifin;
+      y       <$ dunifin;
       gx      <- g ^ x;
       gxy     <- gx ^ y;
       (m0,m1) <@ BA.choose(gx);
@@ -312,8 +312,8 @@ section.
       var x, y, h, gx;
 
       H.init();
-      x        <$ dt;
-      y        <$ dt;
+      x        <$ dunifin;
+      y        <$ dunifin;
       gx       <- g ^ x;
       gxy      <- gx ^ y;
       (m0,m1)  <@ BA.choose(gx);
@@ -349,7 +349,7 @@ section.
       wp; rnd; call (_: ={glob H} /\ card Log.qs{1} <= qH).
         proc; sp; if=> //; inline Log(LRO).o LRO.o; auto=> />.
         by move=> &2 _ szqs_lt_qH _ _; rewrite fcardU fcard1; smt(fcard_ge0).
-      by inline H.init LRO.init; auto=> />; rewrite fcards0; smt(gt0_qH pow_pow).
+      by inline H.init LRO.init; auto=> />; rewrite fcards0; smt(gt0_qH expM).
     call (_: ={glob H} /\ card Log.qs{1} <= qH).
       proc; sp; if=> //; inline Log(LRO).o LRO.o; auto=> /> &2 _ szqs_lt_qH _ _.
       by rewrite fcardU fcard1; smt(fcard_ge0).

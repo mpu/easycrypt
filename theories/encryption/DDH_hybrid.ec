@@ -6,12 +6,22 @@
  * Distributed under the terms of the CeCILL-B-V1 license
  * -------------------------------------------------------------------- *)
 
-require import Real.
-require import Int IntDiv.
-require import Prime_field.
-require import Cyclic_group_prime.
+require import Real Int IntDiv.
 
-require Hybrid.
+(** The group **)
+require (*--*) Group.
+
+clone export Group.CyclicGroup.
+
+(* The group has order p *)
+axiom prime_order: prime order.
+
+clone import PowZMod
+proof
+  prime_order by rewrite prime_order.
+export ZModE ZModE.DZmodP.
+
+require (*--*) Hybrid.
 
 op n : { int | 0 < n } as n_pos.
 clone import Hybrid as H with
@@ -25,19 +35,19 @@ clone import Hybrid as H with
 
 module DDHl = {
   proc orcl () : group * group * group = {
-    var x, y: gf_q;
-    x <$ Dgf_q.dgf_q;
-    y <$ Dgf_q.dgf_q;
+    var x, y: exp;
+    x <$ dunifin;
+    y <$ dunifin;
     return (g^x, g^y, g^(x * y));
   }
 }.
 
 module DDHr = {
   proc orcl () : group * group * group = {
-    var x, y, z: gf_q;
-    x <$ Dgf_q.dgf_q;
-    y <$ Dgf_q.dgf_q;
-    z <$ Dgf_q.dgf_q;
+    var x, y, z: exp;
+    x <$ dunifin;
+    y <$ dunifin;
+    z <$ dunifin;
     return (g^x, g^y, g^z);
   }
 }.
@@ -49,37 +59,39 @@ module DDHb : H.Orclb = {
 }.
 
 lemma islossless_leaks : islossless DDHb.leaks.
-proof. proc;auto. qed.
+proof. by proc; auto. qed.
 
 lemma islossless_orcl1 : islossless DDHb.orclL.
-proof. proc;auto;progress;smt. qed.
+proof. by proc; auto; rewrite dunifin_ll. qed.
 
 lemma islossless_orcl2 : islossless DDHb.orclR.
-proof. proc;auto;progress;smt. qed.
+proof. by proc; auto; rewrite dunifin_ll. qed.
 
 section.
 
-  declare module A <: H.AdvOrclb{Count,HybOrcl,DDHb}.
+declare module A <: H.AdvOrclb {Count, HybOrcl, DDHb}.
 
-  declare axiom losslessA : forall (Ob0 <: Orclb{A}) (LR <: Orcl{A}),
-    islossless LR.orcl =>
-    islossless Ob0.leaks =>
-    islossless Ob0.orclL =>
-    islossless Ob0.orclR => islossless A(Ob0, LR).main.
+declare axiom losslessA : forall (Ob0 <: Orclb{A}) (LR <: Orcl{A}),
+  islossless LR.orcl =>
+  islossless Ob0.leaks =>
+  islossless Ob0.orclL =>
+  islossless Ob0.orclR => islossless A(Ob0, LR).main.
 
-  lemma Hybrid:
-    forall &m,
-      Pr[Ln(DDHb, HybGame(A)).main() @ &m : (res /\ HybOrcl.l <= n) /\ Count.c <= 1 ] -
-      Pr[Rn(DDHb, HybGame(A)).main() @ &m : (res /\ HybOrcl.l <= n) /\ Count.c <= 1 ] =
-      1%r / n%r *
-       (Pr[Ln(DDHb, A).main() @ &m : (res /\ Count.c <= n) ] -
-        Pr[Rn(DDHb, A).main() @ &m : (res /\ Count.c <= n) ]).
-  proof.
-   move=> &m.
-   apply (H.Hybrid_div (<:DDHb) (<:A) _ _ _ _ &m
-       (fun (ga:glob A) (gb:glob DDHb) (c:int) (r:bool), r)).
-   apply islossless_leaks. apply islossless_orcl1. apply islossless_orcl2. apply losslessA.
-   smt(n_pos).
-  qed.
+lemma Hybrid:
+  forall &m,
+    Pr[Ln(DDHb, HybGame(A)).main() @ &m : (res /\ HybOrcl.l <= n) /\ Count.c <= 1 ] -
+    Pr[Rn(DDHb, HybGame(A)).main() @ &m : (res /\ HybOrcl.l <= n) /\ Count.c <= 1 ] =
+    1%r / n%r *
+     (Pr[Ln(DDHb, A).main() @ &m : (res /\ Count.c <= n) ] -
+      Pr[Rn(DDHb, A).main() @ &m : (res /\ Count.c <= n) ]).
+proof.
+move=> &m.
+apply (H.Hybrid_div DDHb A _ _ _ _ &m (fun _ _ _ (r:bool)=> r)).
++ exact: islossless_leaks.
++ exact: islossless_orcl1.
++ exact: islossless_orcl2.
++ exact: losslessA.
+exact/StdOrder.IntOrder.gtr_eqF/n_pos.
+qed.
 
 end section.

@@ -12,16 +12,15 @@
  *)
 require import Real.
 require import DLog.
-require import CyclicGroup.
 
 require (*--*) Commitment.
 
 (* Pedersen protocol types *)
 theory PedersenTypes.
   type value        = group.
-  type message      = F.t.
+  type message      = exp.
   type commitment   = group.
-  type openingkey   = F.t.
+  type openingkey   = exp.
 end PedersenTypes.
 export PedersenTypes.
 
@@ -36,14 +35,14 @@ export CommitmentProtocol.
 module Pedersen : CommitmentScheme = {
   proc gen() : value = {
     var x, h;
-    x <$ FDistr.dt;
+    x <$ dunifin;
     h <- g^x;
     return h;
   }
 
   proc commit(h: value, m: message) : commitment * openingkey = {
     var c, d;
-    d <$ FDistr.dt;
+    d <$ dunifin;
     c <- (g^d) * (h^m);
     return (c, d);
   }
@@ -57,7 +56,7 @@ module Pedersen : CommitmentScheme = {
 
 
 module DLogAttacker(B:Binder) : DLog.Adversary = {
-  proc guess(h: group) : F.t option = {
+  proc guess(h: group) : exp option = {
 
     var x, c, m, m', d, d';
     (c, m, d, m', d') <@ B.bind(h);
@@ -80,14 +79,14 @@ section PedersenSecurity.
   local module FakeCommit(U:Unhider) = {
     proc main() : bool = {
       var b, b', x, h, c, d;
-      var m0, m1 : F.t;
+      var m0, m1 : exp;
 
       (* Clearly, there are many useless lines, but their presence helps for the proofs *)
-      x <$ FDistr.dt;
+      x <$ dunifin;
       h <- g^x;
       (m0, m1) <@ U.choose(h);
       b <$ {0,1};
-      d <$ FDistr.dt;
+      d <$ dunifin;
       c <- g^d; (* message independent - fake commitment *)
       b' <@ U.guess(c);
 
@@ -100,7 +99,7 @@ section PedersenSecurity.
     islossless U.guess =>
     islossless FakeCommit(U).main.
   proof.
-    by move => uc_ll ug_ll; islossless; (apply FDistr.dt_ll || apply DBool.dbool_ll).
+    by move => uc_ll ug_ll; islossless.
   qed.
 
   (* Perfect hiding *)
@@ -113,7 +112,7 @@ section PedersenSecurity.
     proc; wp.
     swap 4 3.
     rnd (pred1 b'); call ug_ll; wp; rnd; call uc_ll; auto => />.
-    by rewrite FDistr.dt_ll /= => v _ _ result; rewrite DBool.dbool1E.
+    by rewrite dunifin_ll /= => v _ _ result; rewrite DBool.dbool1E.
   qed.
 
   local lemma phi_hi (U<:Unhider) &m:
@@ -122,10 +121,11 @@ section PedersenSecurity.
   proof.
     byequiv => //.
     proc; inline*.
-    call (_:true); wp.
+    call (: true); wp.
     rnd (fun d, (d + x * (b?m1:m0)){2})
         (fun d, (d - x * (b?m1:m0)){2}).
-    by wp; rnd; call (_: true); auto => />; progress; algebra.
+    wp; rnd; call (: true); auto=> />; progress; first 2 by ring.
+    by rewrite -expM -expD.
   qed.
 
   (* Perfect hiding - QED *)
@@ -150,7 +150,8 @@ section PedersenSecurity.
     + by split => [<- | ->]; field; apply: contra m_neq_m' => heq;ring heq.
     have -> : d - d' = x * (m' - m) <=> d + x * m = d' + x * m'.
     + by split => heq; ring heq.
-    by rewrite pow_bij -!(mul_pow, pow_pow, comm, comm').
+    move: comm'; rewrite comm -!expM -!expD=> /(congr1 loge).
+    by rewrite !loggK.
   qed.
 
   (*

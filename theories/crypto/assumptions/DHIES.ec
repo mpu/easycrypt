@@ -6,7 +6,7 @@
  * Distributed under the terms of the CeCILL-B-V1 license
  * -------------------------------------------------------------------- *)
 
-require import AllCore FSet CoreMap SmtMap CyclicGroup List.
+require import AllCore IntDiv FSet CoreMap SmtMap List.
 require import Distr DList DJoin DMap StdOrder.
 require import AEAD.
 require (*--*) MRPKE.
@@ -29,18 +29,18 @@ theory DHIES.
   type CTxt = group * Cph.
   type PTxt = Msg.
   type Pk = group.
-  type Sk = t.
-  type Rand = t.
+  type Sk = exp.
+  type Rand = exp.
   type MPk = Pk fset.
   type MCTxt = (Pk, CTxt) fmap.
   type Tag = AData.
 
   (* DH keypair sampling distr *)
-  op genDH : (Sk*Pk) distr = dmap FDistr.dt (fun x=> (x, g^x)).
+  op genDH : (Sk*Pk) distr = dmap dunifin (fun (x : exp)=> (x, g^x)).
 
   (* mrDHIES up to key derivation distr *)
   op mkeyDHIES (pkl: Pk list) : (Pk*(group*K)) list distr =
-    dmap FDistr.dt (fun x => map (fun pk => (pk, (g^x, hash (pk^x)))) pkl).
+    dmap DZmodP.dunifin (fun (x : exp) => map (fun pk => (pk, (g^x, hash (pk^x)))) pkl).
 
   (* DHIES symmetric encryption part distr *)
   op encDHIES tag ptxt (kk: Pk * (group * K)) : (Pk * (group * Cph)) distr =
@@ -64,9 +64,9 @@ theory DHIES.
 
   (* mrndDHIES up to key derivation, but random independent symmetric keys *)
   op mrndkeyDHIES (pkl: Pk list) : (Pk*(group*K)) list distr =
-    dlet_locked FDistr.dt
-                        (fun x => dmap (dlist gen (size pkl))
-                        (fun ks => amap (fun pk k => (g^x, k)) (zip pkl ks))).
+    dlet_locked DZmodP.dunifin
+      (fun (x : exp) => dmap (dlist gen (size pkl))
+                           (fun ks => amap (fun pk k => (g^x, k)) (zip pkl ks))).
 
   lemma nosmt mencDHIES_menc pkl (kk: (Pk * (group * K)) list) tag ptxt:
     pkl = map (snd \o snd) kk =>
@@ -83,7 +83,7 @@ theory DHIES.
     proc gen () : (Sk * Pk) = {
       var y, gy;
 
-      y  <$ FDistr.dt;
+      y  <$ DZmodP.dunifin;
       gy <- g ^ y;
       return (y,gy);
     }
@@ -91,7 +91,7 @@ theory DHIES.
     proc mencrypt (mpk : MPk, tag : Tag, ptxt : PTxt) : MCTxt = {
       var cphList,scph,x,gx,pkl,i;
 
-      x       <$ FDistr.dt;
+      x       <$ DZmodP.dunifin;
       gx      <- g ^ x;
       pkl     <- map (fun pk => (pk,(gx, hash(pk^x)))) (elems mpk);
       i       <- size pkl-1;
@@ -138,7 +138,7 @@ theory DHIES.
       var pkl, eph, keys, cphs, cph;
       pkl <- elems mpk;
       (* keys : (Pk * (group * K)) list *)
-      eph <$ FDistr.dt;
+      eph <$ DZmodP.dunifin;
       keys <- map (fun pk => (pk, (g ^ eph, hash (pk ^ eph)))) pkl;
       (* cphs : (Pk * (group * Cph)) *)
       cphs <$ mencDHIES tag ptxt keys;
@@ -166,7 +166,7 @@ theory DHIES.
     }
     proc mrndkeys2 (pkl : Pk list) : (Pk * (group * K)) list = {
       var x, ks, keys;
-      x <$ FDistr.dt;
+      x <$ DZmodP.dunifin;
       ks <$ dlist gen (size pkl);
       keys <- amap (fun pk k => (g^x, k)) (zip pkl ks);
       return keys;
@@ -264,7 +264,7 @@ theory DHIES.
   qed.
 
   clone import DProd.DLetSampling as MRnd_let
-  with type t <- t,
+  with type t <- exp,
        type u <- (Pk * (group*K)) list.
 
   clone import DMapSampling as MRnd_map
@@ -274,8 +274,8 @@ theory DHIES.
   lemma nosmt mrndkeys_def : equiv [MEnc.mrndkeys1 ~ MEnc.mrndkeys2: ={pkl} ==> ={res}].
   proof.
   proc.
-  transitivity{1} { keys <$ dlet_locked FDistr.dt
-                                 (fun x => dmap (dlist gen (size pkl))
+  transitivity{1} { keys <$ dlet_locked DZmodP.dunifin
+                                 (fun (x : exp) => dmap (dlist gen (size pkl))
                                  (fun ks => amap (fun pk k => (g^x,k))
                                  (zip pkl ks))); }
                (={pkl} ==> ={keys})
@@ -283,14 +283,14 @@ theory DHIES.
   first 2 by progress; exists pkl{2}.
   (* PY: rnd is very long *) 
   + by rnd; skip.
-  transitivity{1} { keys <@ MRnd_let.SampleDep.sample(FDistr.dt,
-                      fun x => dmap (dlist gen (size pkl))
+  transitivity{1} { keys <@ MRnd_let.SampleDep.sample(DZmodP.dunifin,
+                      fun (x : exp) => dmap (dlist gen (size pkl))
                       (fun ks => amap (fun pk k => (g^x,k)) (zip pkl ks))); }
                   (={pkl} ==> ={keys})
                   (={pkl} ==> ={keys});
   first 2 by progress; exists pkl{2}.
-  transitivity{1} { keys <@ MRnd_let.SampleDLet.sample(FDistr.dt,
-                      fun x => dmap (dlist gen (size pkl))
+  transitivity{1} { keys <@ MRnd_let.SampleDLet.sample(DZmodP.dunifin,
+                      fun (x : exp) => dmap (dlist gen (size pkl))
                       (fun ks => amap (fun pk k => (g^x,k)) (zip pkl ks))); }
                   (={pkl} ==> ={keys})
                   (={pkl} ==> ={keys});
@@ -317,7 +317,7 @@ theory DHIES.
   qed.
 
   clone import DMapSampling as MKey_map
-  with type t1 <- t,
+  with type t1 <- exp,
        type t2 <- (Pk * (group*K)) list.
 
   clone import DMapSampling as MEncrypt_map
@@ -366,15 +366,15 @@ theory DHIES.
    by symmetry; call MEncDHIES_let.SampleDepDLet.
   inline*; wp; rnd; swap{1} 2 1; wp.
   transitivity{1} {t <@ MKey_map.S.map(
-                          FDistr.dt,
-                          (fun x => map (fun pk => (pk, (g^x, hash (pk^x)))) (elems mpk))); }
+                          DZmodP.dunifin,
+                          (fun (x : exp) => map (fun pk => (pk, (g^x, hash (pk^x)))) (elems mpk))); }
                    (={mpk,tag,ptxt} ==> ={mpk,tag,ptxt, t})
                    (={mpk,tag,ptxt} ==> ={mpk,tag,ptxt} &&
             t{1}= map (fun (pk : group) => (pk, (g ^ eph{2}, hash (pk ^ eph{2})))) pkl{2});
    first 2 by progress; exists mpk{2} ptxt{2} tag{2}.
     transitivity{1} {t <@ MKey_map.S.sample(
-                            FDistr.dt,
-                            (fun x => map (fun pk => (pk, (g^x, hash (pk^x)))) (elems mpk))); }
+                            DZmodP.dunifin,
+                            (fun (x : exp) => map (fun pk => (pk, (g^x, hash (pk^x)))) (elems mpk))); }
                    (={mpk,tag,ptxt} ==> ={mpk,tag,ptxt, t})
                    (={mpk,tag,ptxt} ==> ={mpk,tag,ptxt, t});
    first 2 by progress; exists mpk{2} ptxt{2} tag{2}.
@@ -390,7 +390,7 @@ theory DHIES.
   (* we axiomatize operators based on the above module *)
   lemma nosmt gendef: equiv [DHIES.gen ~ Scheme.gen : true ==>  ={res}].
   proof.
-  proc; wp; rnd (fun x=> (x, g^x)) (fun (x:t*group)=> x.` 1); skip; progress.
+  proc; wp; rnd (fun (x : exp)=> (x, g^x)) (fun (x:exp*group)=> x.` 1); skip; progress.
     by move: H; rewrite /genDH supp_dmap; move => [x [Hx ->]].
    rewrite /genDH dmap1E /(\o) /=.
    move: H0; rewrite /genDH supp_dmap; move => [x [Hx ->]] /=.
@@ -602,7 +602,7 @@ pose inv (gPKE1:glob MRPKE_lor) (gPKE2:glob MRPKE_lor) (gODH2:glob ODH_Orcl)
   gODH2.`1 <= gPKE1.`2 /\
   gODH2.`2 = gPKE2.`3 /\ gODH2.`4 = gPKE1.`5 /\
   (forall pk sk, gPKE1.`5.[pk] = Some sk => pk = g^sk) /\
-  (forall pk gx k, skeys2.[(pk,gx)] = Some k => pk \in gPKE2.`5 && exists x, gx=g^x && k=hash(pk^x)) /\
+  (forall pk gx k, skeys2.[(pk,gx)] = Some k => pk \in gPKE2.`5 && exists (x : exp), gx=g^x && k=hash(pk^x)) /\
   (forall pk sk, gPKE1.`5.[pk] = Some sk => pk = g^sk) /\
   (forall pk tag cph,
     ((pk,tag,cph) \in gPKE1.`4)%List => pk \in gPKE1.`5 && (pk,cph.`1) \in skeys2)  /\
@@ -613,7 +613,7 @@ wp; call (_: inv (glob MRPKE_lor){1} (glob MRPKE_lor){2} (glob ODH_Orcl){2} Adv1
    sp; if; first by rewrite /inv.
    rcondt {2} 3; first by auto => />. 
   seq 2 3: (#[/3:]pre /\ k{1}.`1=y{2} /\ k{1}.`2=gy{2} /\ (gy = g^y){2}).
-   wp; rnd (fun (x:_*_) => x.`1) (fun x => (x, g^x)); skip; rewrite /inv /=; clear inv; progress.
+   wp; rnd (fun (x:_*_) => x.`1) (fun (x : exp) => (x, g^x)); skip; rewrite /inv /=; clear inv; progress.
    + rewrite /genDH dmap1E /(\o) /pred1 /=.
      by apply mu_eq => /= x /#. 
    + by move: H9; rewrite /genDH supp_dmap; move => [x [Hx ->]] /=.
@@ -702,7 +702,7 @@ wp; call (_: inv (glob MRPKE_lor){1} (glob MRPKE_lor){2} (glob ODH_Orcl){2} Adv1
       move: (assoc_some _ _ _ H19) => /mapP [v [? /= [[? ?] ?]]].
       rewrite H23 H22 -H21.
       move: (H6 _ _ H17) => ->; congr.
-      by rewrite !pow_pow FD.F.mulC.
+      by rewrite -!expM; congr; algebra.
   by wp; skip; rewrite /inv /=; clear inv => />; smt().
 + proc; inline*.
   sp 1 1 ; if; first by rewrite /inv.
@@ -806,7 +806,7 @@ wp; call (_: inv (glob MRPKErnd_lor){1} (glob MRPKE_lor){2} (glob ODH_Orcl){2} A
   sp; if; first by rewrite /inv.
    rcondt {2} 3; first by auto => />.
    seq 2 3: (#[/3:]pre /\ k.`1{1}=y{2} /\ k.`2{1}=gy{2}).
-    wp; rnd (fun (x:_*_) => x.`1) (fun x => (x, g^x)); skip; rewrite /inv /=; clear inv; progress.
+    wp; rnd (fun (x:_*_) => x.`1) (fun (x : exp) => (x, g^x)); skip; rewrite /inv /=; clear inv; progress.
     + rewrite /genDH dmap1E /(\o) /pred1 /=.
       by apply mu_eq => /= x /#. 
     + by move: H6; rewrite /genDH supp_dmap; move => [x [Hx ->]].
@@ -914,7 +914,7 @@ module Adv2_Procs (AEADmul_Orcl : AEADmul_OraclesT) : MRPKE_OrclT = {
     if (MRPKE_lor.count_lor < q_lor) {
       if (pks \subset fdom MRPKE_lor.pklist /\ size (elems pks) < q_maxn) {
         pkl <- elems pks;
-        x <$ FDistr.dt;
+        x <$ DZmodP.dunifin;
         gx  <- g ^ x;
         aeadcph <@ AEADmul_Orcl.lor(size (elems pks),tag,m0,m1);
         if (aeadcph <> None) {

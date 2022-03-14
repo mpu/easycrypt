@@ -7,23 +7,34 @@
 (*
  * A formal verification of the Schnorr proof of knowledge
  *)
-require import Int.
-require import Real.
-require import Distr.
-require import CyclicGroup.
+require import AllCore Int IntDiv Real Distr.
+
+(** The group **)
+require (*--*) Group.
+
+clone export Group.CyclicGroup.
+
+(* The group has prime order *)
+axiom prime_order: prime order.
+
+clone export PowZMod
+proof
+  prime_order by rewrite prime_order.
+export ZModE ZModE.DZmodP.
+
 
 require (*--*) SigmaProtocol.
 
 (* Schnorr protocol types *)
 theory SchnorrTypes.
   type statement    = group.
-  type witness      = F.t.
+  type witness      = exp.
   type message      = group.
-  type secret       = F.t.
-  type challenge    = F.t.
-  type response     = F.t.
+  type secret       = exp.
+  type challenge    = exp.
+  type response     = exp.
 
-  op R_DL h w       = (h = g^w).
+  op R_DL h (w : exp) = h = g^w.
 end SchnorrTypes.
 export SchnorrTypes.
 
@@ -36,15 +47,15 @@ clone import SigmaProtocol as SP with
   type SigmaProtocol.challenge <- challenge,
   type SigmaProtocol.response  <- response,
   op   SigmaProtocol.R         = R_DL,
-  op   SigmaProtocol.de        = FDistr.dt.
+  op   SigmaProtocol.de        = dunifin.
 export SigmaProtocol.
 
 module SchnorrPK : SigmaScheme = {
   proc gen() : statement * witness = {
     var h, w;
-    w <$ FDistr.dt;
-    if (w = F.zero) { (* A loop would be better, however the support for while loops is poor *)
-      w <- -F.one;
+    w <$ dunifin;
+    if (w = zero) { (* A loop would be better, however the support for while loops is poor *)
+      w <- -one;
     }
     h <- g^w;
     return (h, w);
@@ -52,14 +63,14 @@ module SchnorrPK : SigmaScheme = {
 
   proc commit(h: statement, w: witness) : message * secret = {
     var r, a;
-    r <$ FDistr.dt;
+    r <$ dunifin;
     a <- g^r;
     return (a, r);
   }
 
   proc test(h: statement, a: message) : challenge = {
     var e;
-    e <$ FDistr.dt;
+    e <$ dunifin;
     return e;
   }
 
@@ -98,7 +109,7 @@ module SchnorrPKAlgorithms : SigmaAlgorithms = {
   proc simulate(h: statement, e: challenge) : message * challenge * response = {
     var a, z;
 
-    z  <$ FDistr.dt;
+    z  <$ dunifin;
     a  <- (g^z) * (h^(-e));
 
     return (a, e, z);
@@ -119,11 +130,12 @@ section SchnorrPKSecurity.
     byphoare (_: h = x /\ w' = w ==> _) => //; rewrite sigmarel.
     proc; inline*; swap 3 -2; swap 8 -7.
     wp; rewrite /snd /=; auto => &hr />.
-    rewrite FDistr.dt_ll => /> *; algebra.
+    rewrite dunifin_ll => /> *.
+    by rewrite expD -expM; congr; congr; algebra.
   qed.
 
   (* Special soundness *)
-  lemma schnorr_proof_of_knowledge_special_soundness (h: statement) msg ch ch' r r' &m:
+  lemma schnorr_proof_of_knowledge_special_soundness (h: statement) msg (ch ch' r r' : exp) &m:
     ch <> ch' =>
     g^r  = msg*(h^ch ) =>
     g^r' = msg*(h^ch') =>
@@ -135,9 +147,9 @@ section SchnorrPKSecurity.
     byphoare (_: h = x /\ msg = m /\ ch = e /\ ch' = e' /\ r = z /\ r' = z' ==> _) => //.
     proc; simplify; inline*.
     auto; rewrite /R /R_DL /oget => &hr /> hne 2!-> /=.
-    rewrite F.div_def -pow_pow F.sub_def -mul_pow pow_opp log_bij.
-    rewrite accepting_transcript_1 accepting_transcript_2 !(log_gpow, log_pow, log_mul, inv_def). 
-    by field; apply: contra hne => heq; ring heq.
+    rewrite expM expD expN accepting_transcript_1 accepting_transcript_2.
+    rewrite -mulcA invM (mulcA (_ ^ e{hr})) (mulcC (_ ^ e{hr})) !mulcA mulcV mul1c.
+    by rewrite -expN -expD -expM ZModpField.divrr 1:ZModpRing.subr_eq0 // exp1.
   qed.
 
   (* Special honest verifier zero knowledge *)
@@ -153,7 +165,9 @@ section SchnorrPKSecurity.
     + swap{1} 15 -7; swap{2} 12 -5; swap{1} 11 -3; wp.
       (* Let's play with randomness... *)
       rnd (fun z, z - w{1}*e{1}) (fun r, r + w{1}*e{1}).
-      by seq 2 2 : (#pre  /\ ={w0}); auto => />; progress;algebra.
+      seq 2 2 : (#pre  /\ ={w0}); auto => />; progress; [1..2,5: by ring].
+      + by rewrite -!expM -!expD; congr; field.
+      by rewrite -!expM -!expD; congr; field.
     by call (_:true); rcondf{1} 1; auto.
   qed.
   (* The above three theorems prove that the Schnorr proof of knowledge is a Sigma protocol *)

@@ -9,11 +9,11 @@ pragma +implicits.
 (** Assumption: set DDH *)
 (*** WARNING: DiffieHellman is really out of date ***)
 clone import DiffieHellman as DH.
-import DDH FDistr.
+import DDH.
 
 (** Construction: a PKE **)
 type pkey = group.
-type skey = F.t.
+type skey = exp.
 type ptxt = group.
 type ctxt = group * group.
 
@@ -28,14 +28,14 @@ module ElGamal : Scheme = {
   proc kg(): pkey * skey = {
     var sk;
 
-    sk <$ dt;
+    sk <$ dunifin;
     return (g ^ sk, sk);
   }
 
   proc enc(pk:pkey, m:ptxt): ctxt = {
     var y;
 
-    y <$ dt;
+    y <$ dunifin;
     return (g ^ y, pk ^ y * m);
   }
 
@@ -75,16 +75,16 @@ section Security.
   swap{1} 7 -5.
   auto; call (_:true).
   auto; call (_:true).
-  by auto=> /> sk _ y _ r b _; rewrite pow_pow.
+  by auto=> /> sk _ y _ r b _; rewrite expM.
   qed.
 
   local module Gb = {
     proc main () : bool = {
       var x, y, z, m0, m1, b, b';
-      x       <$ FDistr.dt;
-      y       <$ FDistr.dt;
+      x       <$ dunifin;
+      y       <$ dunifin;
       (m0,m1) <@ A.choose(g^x);
-      z       <$ FDistr.dt;
+      z       <$ dunifin;
       b'      <@ A.guess(g^y, g^z);
       b       <$ {0,1};
       return b' = b;
@@ -98,10 +98,11 @@ section Security.
   byequiv=> //; proc; inline *.
   swap{1} 3 2; swap{1} [5..6] 2; swap{2} 6 -2.
   auto; call (_:true); wp.
-  rnd (fun z, z + log (if b then m1 else m0){2})
-      (fun z, z - log (if b then m1 else m0){2}).
+  rnd (fun z=> z + loge (if b then m1 else m0){2})
+      (fun z=> z - loge (if b then m1 else m0){2}).
   auto; call (_:true).
-  by auto; progress; algebra.
+  auto; progress; first 2 by ring.
+  by rewrite expD expgK.
   qed.
 
   local lemma Gb_half &m:
