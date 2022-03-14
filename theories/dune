@@ -76,7 +76,6 @@
     (newth/SmtMap.ec                         as  newth/SmtMap.ec                 )
     (oldlibs/CyclicGroup.ec                  as  oldlibs/CyclicGroup.ec          )
     (oldlibs/Cyclic_group_prime.ec           as  oldlibs/Cyclic_group_prime.ec   )
-    (oldlibs/OldDistr.ec                     as  oldlibs/OldDistr.ec             )
     (oldlibs/OldFMap.ec                      as  oldlibs/OldFMap.ec              )
     (oldlibs/PrimeField.ec                   as  oldlibs/PrimeField.ec           )
     (oldlibs/Prime_field.ec                  as  oldlibs/Prime_field.ec          )

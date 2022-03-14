@@ -121,13 +121,13 @@ by rewrite gf_q_opp_mult gf_q_distr -2!gf_q_opp_mult.
 qed.
 
 theory Dgf_q.
-  require import OldDistr.
+  require import Distr.
   require import Real.
 
   op dgf_q: gf_q distr.
 
   axiom supp_def: forall (s:gf_q),
-    in_supp s dgf_q.
+    support dgf_q s.
 
   axiom mu1_def_in: forall (s:gf_q),
     mu1 dgf_q s = 1%r/q%r.
