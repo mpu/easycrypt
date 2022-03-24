@@ -258,7 +258,7 @@ section.
     by rewrite dt_ll DBool.dbool_ll.
   + by move=> H H_o_ll; proc; auto; call (guess_ll H _)=> //; auto=> />.
   + by move=> _; apply: dbits_ll.
-  by rewrite !eqT.
+  smt().
   qed.
 
   local module G1' = {
