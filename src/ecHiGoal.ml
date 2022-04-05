@@ -895,7 +895,7 @@ let process_rewrite1_r ttenv ?target ri tc =
           fp_head = FPNamed (name, None);
           fp_args = []; } in
       let tc =
-        t_onselect p (t_seq (EcPhlCall.process_call None pterm) process_done) tc in
+        t_onselect p (t_seq (EcPhlCall.process_call None pterm) (t_try process_done)) tc in
 
       (* Two more goals (1 and 4) can be solved in general (with the same proof):
        * - move=> &1 &2 H; exists var1{1} var2{1} ... varn{1}; split.
