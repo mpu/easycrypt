@@ -212,20 +212,20 @@ module B (S : Scheme, A : Adversary, O : CCA_Oracle) = {
 
 section.
 
-declare module S <: Scheme {CCA_Oracle, LorR, B, CountCCA, CountAdv}.
-declare module A <: Adversary {CCA_Oracle, S, LorR, B, CountCCA, CountAdv}.
+declare module S <: Scheme {-CCA_Oracle, -LorR, -B, -CountCCA, -CountAdv}.
+declare module A <: Adversary {-CCA_Oracle, -S, -LorR, -B, -CountCCA, -CountAdv}.
 
-declare axiom A_ll (O <: CCA_Oracle {A}) :
+declare axiom A_ll (O <: CCA_Oracle {-A}) :
   islossless O.l_or_r => islossless O.dec => islossless A(O).main.
 
 declare axiom kg_ll : islossless S.kg.
 declare axiom enc_ll : islossless S.enc.
 declare axiom dec_ll : islossless S.dec.
 
-declare axiom A_bound (O <: CCA_Oracle {A, CountCCA}) :
+declare axiom A_bound (O <: CCA_Oracle {-A, -CountCCA}) :
   hoare[ CountAdv(A, O).main : true ==> CountCCA.ndec <= Ndec /\ CountCCA.nenc <= Nenc].
 
-lemma A_bound' (O <: CCA_Oracle {A, CountCCA}) :
+lemma A_bound' (O <: CCA_Oracle {-A, -CountCCA}) :
   hoare[ A(CountCCA(O)).main :
     CountCCA.ndec = 0 /\ CountCCA.nenc = 0 ==> CountCCA.ndec <= Ndec /\ CountCCA.nenc <= Nenc].
 proof.
@@ -237,17 +237,19 @@ suff E : equiv [A(CountCCA(O)).main ~ CountAdv(A, O).main :
   by skip => />.
 qed.
 
+local clone LorR as LR with type input <- unit proof*.
+
 lemma CCA_LR &m :
   `| Pr[ CCA(S, A).main() @ &m : res] - 1.0/2.0 | =
   1%r / 2%r * `| Pr[ CCA_L(S, A).main() @ &m : res ] - Pr[ CCA_R(S, A).main() @ &m : res ] |.
 proof.
-rewrite (Top.LorR.pr_AdvLR_AdvRndLR (CCA_L(S, A)) (CCA_R(S, A)) &m).
+rewrite (LR.pr_AdvLR_AdvRndLR (CCA_L(S, A)) (CCA_R(S, A)) &m).
 - byphoare => //.
   islossless; last by apply: kg_ll.
   apply: (A_ll(CountCCA(CCA_Oracle(S, R)))); first by islossless; apply: enc_ll.
   islossless; apply: dec_ll.
 suff <- : Pr[CCA(S, A).main() @ &m : res] =
-          Pr[Top.LorR.RandomLR(CCA_L(S, A),CCA_R(S, A)).main() @ &m : res] by smt().
+          Pr[LR.RandomLR(CCA_L(S, A),CCA_R(S, A)).main() @ &m : res] by smt().
 byequiv=> //. proc; inline *.
 seq 1 1 : (={glob A,glob S} /\ LorR.b{1} = b{2}); first by rnd.
 if{2}; wp. 
@@ -284,7 +286,7 @@ local module LRB (O : CCA_Oracle) : CCA_Oracle = {
   }
 }.
 
-lemma B_bound (O <: CCA_Oracle {S, CountCCA, A, B}) :
+lemma B_bound (O <: CCA_Oracle {-S, -CountCCA, -A, -B}) :
   hoare[ CountAdv(B(S, A), O).main : true ==> CountCCA.ndec <= Ndec /\ CountCCA.nenc <= 1].
 proof.
 proc; inline *; swap 5 -2; sp; auto.
@@ -401,7 +403,7 @@ local module A' (Ob : Hyb.Orclb) (O : Hyb.Orcl) = {
   }
 }.
 
-local lemma A'_ll (Ob <: Hyb.Orclb{A'}) (LR <: Hyb.Orcl{A'}) :
+local lemma A'_ll (Ob <: Hyb.Orclb{-A'}) (LR <: Hyb.Orcl{-A'}) :
   islossless LR.orcl => islossless Ob.leaks =>
   islossless Ob.orclL => islossless Ob.orclR =>
   islossless A'(Ob, LR).main.
@@ -434,7 +436,7 @@ call (: ={glob S} /\ ={sk,pk,cs}(CCA_Oracle,Ob)).
 + by auto; call(: true).
 qed.
 
-local lemma A'_call (O <: Hyb.Orcl{Hyb.Count, A'}) :
+local lemma A'_call (O <: Hyb.Orcl{-Hyb.Count, -A'}) :
   hoare[ Hyb.AdvCount(A'(Ob, Hyb.OrclCount(O))).main : true ==> Hyb.Count.c <= Nenc].
 proof.
 proc. inline A'(Ob, Hyb.OrclCount(O)).main; wp.

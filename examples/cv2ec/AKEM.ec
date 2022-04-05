@@ -1,4 +1,4 @@
-require import AllCore List Finite Distr DBool DInterval DList LorR FSet SmtMap.
+require import AllCore List Finite Distr DBool DInterval DList FSet SmtMap.
 require (****) StdBigop PROM Means.
 
 require import LibExt. 
@@ -266,9 +266,9 @@ clone MkCount as CB.
 
 section PROOF.
 
-declare module A <: Adversary{Oreal,Oideal,Count,B,CB.Count}.
+declare module A <: Adversary{-Oreal,-Oideal,-Count,-B,-CB.Count}.
 
-declare axiom A_ll : forall (O <: Oracle{A}),
+declare axiom A_ll : forall (O <: Oracle{-A}),
   islossless O.pkey =>
   islossless O.encap =>
   islossless O.decap => 
@@ -325,7 +325,7 @@ local module G : M1.Worker = {
   }
 }.
 
-declare axiom A_bound (O <: Oracle{A,Count}) :
+declare axiom A_bound (O <: Oracle{-A,-Count}) :
   hoare [ A(Count(O)).guess : 
   counts0 Count.ce Count.cd Count.cc ==> 
   counts qe qd qc Count.ce Count.cd Count.cc].
@@ -468,7 +468,7 @@ call (: ={glob Oreal} /\ ={m}(B.OB,Oideal) /\ ={ctr}(B.OB,OG) /\
   wp. sp 3 6. 
   if{1}. 
   + rcondf{2} 4; first by auto => /> /#. 
-    by inline*; auto; smt(mem_set).
+    by inline*; auto => /> ; smt(mem_set).
   if{1}. 
   + rcondt{2} 4; first by auto => /> /#.
     by inline*; auto; smt(mem_set).
@@ -491,7 +491,7 @@ local module Bc(O:Oracle) = {
   }
 }.
 
-local equiv B_Bc (O<:Oracle{A,B,CB.Count,Count}) : 
+local equiv B_Bc (O<:Oracle{-A,-B,-CB.Count,-Count}) : 
     B(A,CB.Count(O)).guess ~ Bc(O).guess : 
     ={glob A, glob B, glob O, glob CB.Count} ==> ={glob A, glob B, glob CB.Count}.
 proof.
@@ -505,7 +505,7 @@ by auto.
 qed.
 
 lemma B_bound:
-  forall (O <: Oracle{A,B,CB.Count,Count}),
+  forall (O <: Oracle{-A,-B,-CB.Count,-Count}),
     hoare[ B(A,CB.Count(O)).guess :
             counts0 CB.Count.ce CB.Count.cd CB.Count.cc ==>
             counts (qe+qc) qd 1 CB.Count.ce CB.Count.cd CB.Count.cc].
@@ -552,7 +552,7 @@ have /= -> := M0.Mean_uni G &m ev (1%r/qc%r) _ (finite_dinter 0 (qc-1)).
 rewrite /ev /=.
 rewrite (eq_big_perm _ _ _ _ (perm_eq_dinter 1 qc)).
 rewrite (eq_big_perm _ _ _ _ (perm_eq_dinter_pred 0 qc)).
-rewrite [range 0 _]range_ltn 1:#smt big_cons {2}/predT /=. 
+rewrite [range 0 _]range_ltn 1:#smt big_cons {-2}/predT /=. 
 rewrite rangeSr 1:#smt big_rcons {1}/predT /=.
 rewrite -StdOrder.RealOrder.normrZ; smt(qc_gt0).
 qed.
@@ -877,10 +877,10 @@ module (Bbad (A : Adversary) : O2.Adversary) (O2 : O2.Oracle) = {
 
 section PROOF.
 
-declare module A <: Adversary{Oreal,Oideal,Count,B,
-                              O2.C.Count, O2.Oreal, O2.Oideal,O2.B, O2.CB.Count}.
+declare module A <: Adversary{-Oreal,-Oideal,-Count,-B,
+                              -O2.C.Count, -O2.Oreal, -O2.Oideal,-O2.B, -O2.CB.Count}.
 
-declare axiom A_ll : forall (O <: Oracle{A}),
+declare axiom A_ll : forall (O <: Oracle{-A}),
   islossless O.encap =>
   islossless O.decap => 
   islossless O.pkey =>
@@ -893,7 +893,7 @@ declare axiom A_bound (O <: Oracle) :
     O2.counts0 Count.ce Count.cd 0 ==> 
     O2.counts qe qd 0 Count.ce Count.cd 0].
 
-(* We define an indexed collection of games G_{u,v} where 1<=u<=n
+(* We define an indexed collection of games G_{-u,-v} where 1<=u<=n
 and 0<=v<= n. We will then prove 4 main lemmas:
 
 1) G_{n,n} perfectly simulates Game(Oreal,A)
@@ -1139,7 +1139,7 @@ local module (Dreal (C : O2.Adversary) : EK2.FinRO_Distinguisher) (K2 : K2.RO) =
   }
 }.
 
-local equiv O2real_lazy (C <: O2.Adversary{K2.RO,O2.Oreal,O2real,O2.C.Count,K2.FRO}) :
+local equiv O2real_lazy (C <: O2.Adversary{-K2.RO,-O2.Oreal,-O2real,-O2.C.Count,-K2.FRO}) :
   O2.Game(O2.Oreal, C).main ~ O2.Game(O2real(K2.RO), C).main 
   : ={glob C,glob O2.C.Count} ==> ={res,glob C}.
 proof.
@@ -1182,7 +1182,7 @@ local module (Dideal (C : O2.Adversary) : EK2.FinRO_Distinguisher) (K2 : K2.RO) 
   }
 }.
 
-local equiv O2ideal_lazy (C <: O2.Adversary{K2.RO,O2.Oideal,O2ideal,O2.C.Count,K2.FRO}) :  
+local equiv O2ideal_lazy (C <: O2.Adversary{-K2.RO,-O2.Oideal,-O2ideal,-O2.C.Count,-K2.FRO}) :  
   O2.Game(O2.Oideal, C).main ~ O2.Game(O2ideal(K2.RO), C).main 
   : ={glob C,glob O2.C.Count} ==> ={res, glob C}.
 proof.
@@ -1747,7 +1747,7 @@ local module Bc (O : O2.Oracle) = {
   }
 }.
 
-local equiv B_Bc (O<: O2.Oracle{A,B,Count}) : 
+local equiv B_Bc (O<: O2.Oracle{-A,-B,-Count}) : 
     Bbad(A,O).guess ~ Bc(O).guess : 
     ={glob A, glob B, glob O} ==> ={glob A, glob B, glob O}.
 proof. 
@@ -1759,7 +1759,7 @@ proc; inline B(A,O).guess ; wp. call(: ={glob B, glob O}).
 by inline*; auto.
 qed.
 
-local lemma Bbad_bound (O <: O2.Oracle{Count,O2.C.Count,A,B}) :
+local lemma Bbad_bound (O <: O2.Oracle{-Count,-O2.C.Count,-A,-B}) :
   hoare[ Bbad(A, O2.C.Count(O)).guess :
           (O2.counts0 O2.C.Count.ce O2.C.Count.cd O2.C.Count.cc) ==>
           (O2.counts qe qd qe O2.C.Count.ce O2.C.Count.cd O2.C.Count.cc)].
@@ -1792,7 +1792,7 @@ call (: O2.C.Count.ce <= Count.ce /\ O2.C.Count.cd <= Count.cd /\ O2.C.Count.cc 
 by inline*; auto => /> /#. 
 qed.
 
-local lemma Bbad_ll (O <: O2.Oracle{Bbad(A)}) : 
+local lemma Bbad_ll (O <: O2.Oracle{-Bbad(A)}) : 
   islossless O.pkey =>
   islossless O.encap => islossless O.decap => islossless O.chall => islossless Bbad(A, O).guess.
 proof.
@@ -1818,7 +1818,7 @@ qed.
 (* ... and B11 makes at most 2*qe queries to encap, at most qd queries
 to decap, and at most one challenge querey. *)
 lemma B11_bound : 
-  forall (O <: O2.Oracle{A,O2.CB.Count,O2.C.Count,Count,O2.B(Bbad(A)).OB}),
+  forall (O <: O2.Oracle{-A,-O2.CB.Count,-O2.C.Count,-Count,-O2.B(Bbad(A)).OB}),
     hoare[ B11(A,O2.CB.Count(O)).guess :
             O2.counts0 O2.CB.Count.ce O2.CB.Count.cd O2.CB.Count.cc ==>
             O2.counts (2*qe) qd 1 O2.CB.Count.ce O2.CB.Count.cd O2.CB.Count.cc].

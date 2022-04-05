@@ -866,10 +866,10 @@ proof. by smt(dEU_ll dmap_ll). qed.
 
 section.
 
-declare module A <: Adversary {G1, G2, G, S, Count,
-                               OAEU, OBEU, OEU, O0EU, O1EU, O1G}.
+declare module A <: Adversary {-G1, -G2, -G, -S, -Count,
+                               -OAEU, -OBEU, -OEU, -O0EU, -O1EU, -O1G}.
 
-declare axiom A_ll : forall (O <: GDH_RSR_Oracles{A}),
+declare axiom A_ll : forall (O <: GDH_RSR_Oracles{-A}),
   islossless O.oA =>
   islossless O.oB =>
   islossless O.oa =>
@@ -880,7 +880,7 @@ declare axiom A_ll : forall (O <: GDH_RSR_Oracles{A}),
   islossless O.ddhgen =>
   islossless A(O).guess.
 
-declare axiom A_bound : forall (O <: GDH_RSR_Oracles{Count, A}),
+declare axiom A_bound : forall (O <: GDH_RSR_Oracles{-Count, -A}),
   hoare [A(Count(O)).guess :
          Count.ca      = 0       /\ Count.cb      = 0 /\
          Count.cddhma  = 0       /\ Count.cddhmb  = 0 ==>
@@ -1340,7 +1340,7 @@ seq 16 : G.bad p ((1%r - pa) ^ (q_oa + (min 1 q_ddhma)) * pa *
               ={m0, i'0, i0, j0, a, b, t}); 2: by auto => /#.
     wp; call (: ={OBEU.m}); 1: by sim.
     exlim i{1}, i'{1} => i i'; case: (i = i'); 2: by inline*; auto => />.
-    by inline *; auto; smt(get_set_sameE).
+    by inline *; auto => /> ; smt(get_set_sameE).
   + by move => *; proc; inline *; sp; if; auto; smt(dEU_ll).
   + by move => *; proc; inline *; sp; if; auto; smt(dEU_ll).
   + proc; inline G(OAEU, OBEU).ddhmb Gs(OAEU, OBEU).ddhmb.
@@ -1352,7 +1352,7 @@ seq 16 : G.bad p ((1%r - pa) ^ (q_oa + (min 1 q_ddhma)) * pa *
               ={m0, j'0, i0, j0, a, b, t}); 2: by auto => /#.
     wp; call (: ={OAEU.m}); 1: by sim.
     exlim j{1}, j'{1} => j j'; case: (j = j'); 2: by inline*; auto => />.
-    by inline *; auto; smt(get_set_sameE).
+    by inline *; auto => /> ; smt(get_set_sameE).
   + by move => *; proc; inline *; sp; if; auto; smt(dEU_ll).
   + by move => *; proc; inline *; sp; if; auto; smt(dEU_ll).
   + proc; inline G(OAEU, OBEU).ddhgen Gs(OAEU, OBEU).ddhgen; sp; wp.
@@ -1583,8 +1583,8 @@ call (: ={OAEU.m, OBEU.m, G2.ca, G2.cb, glob G, glob Gs} /\
         (forall r, r \in OBEU.m => oget (OBEU.m.[r]) \in EU){2}).
 - by proc; inline *; sp; if; auto; smt(get_setE supp_duniform).
 - by proc; inline *; sp; if; auto; smt(get_setE supp_duniform).
-- by proc; inline *; sp; if; [ | if | ]; auto; smt(get_setE supp_duniform).
-- by proc; inline *; sp; if; [ | if | ]; auto; smt(get_setE supp_duniform).
+- by proc; inline *; sp; if; [ | if | ]; auto => /> ; smt(get_setE supp_duniform).
+- by proc; inline *; sp; if; [ | if | ]; auto => /> ; smt(get_setE supp_duniform).
 - proc; inline Gs(OAEU, OBEU).ddhm G''(OAEU, OBEU).ddhm.
   sp; wp; if; 1, 3: by auto.
   seq 3 3: (={OAEU.m, OBEU.m, G2.ca, G2.cb, glob G, glob Gs} /\
@@ -1595,8 +1595,8 @@ call (: ={OAEU.m, OBEU.m, G2.ca, G2.cb, glob G, glob Gs} /\
             (forall r, r \in OAEU.m => oget (OAEU.m.[r]) \in EU){2} /\
             (forall r, r \in OBEU.m => oget (OBEU.m.[r]) \in EU){2} /\
             ={m0, i0, j0, r0, a, b} /\ a{1} \in EU);
-    1: by inline *; auto; smt(get_setE supp_duniform).
-  by inline *; auto; smt(expM exp_inj mulA mulC powM pow_inv_f).
+    1: by inline *; auto => />; smt(get_setE supp_duniform).
+  by inline *; auto => /> ; smt(expM exp_inj mulA mulC powM pow_inv_f).
 - proc; inline Gs(OAEU, OBEU).ddhma G''(OAEU, OBEU).ddhma.
   sp; wp; if; 1, 3: by auto.
   seq 4 4: (={OAEU.m, OBEU.m, G2.ca, G2.cb, glob G, glob Gs} /\
@@ -1607,7 +1607,7 @@ call (: ={OAEU.m, OBEU.m, G2.ca, G2.cb, glob G, glob Gs} /\
             (forall r, r \in OAEU.m => oget (OAEU.m.[r]) \in EU){2} /\
             (forall r, r \in OBEU.m => oget (OBEU.m.[r]) \in EU){2} /\
             ={m0, i'0, i0, j0, r0, a', a, b} /\ a'{1} \in EU /\ a{1} \in EU);
-    1: by inline *; auto; smt(get_setE supp_duniform).
+    1: by inline *; auto => /> ; smt(get_setE supp_duniform).
   inline *; auto => /> &2 _ _ a'EU aEU.
   by smt(expM exp_inj mulA mulC powM pow_inv_f).
 - proc; inline Gs(OAEU, OBEU).ddhmb G''(OAEU, OBEU).ddhmb.
@@ -1620,7 +1620,7 @@ call (: ={OAEU.m, OBEU.m, G2.ca, G2.cb, glob G, glob Gs} /\
             (forall r, r \in OAEU.m => oget (OAEU.m.[r]) \in EU){2} /\
             (forall r, r \in OBEU.m => oget (OBEU.m.[r]) \in EU){2} /\
             ={m0, j'0, i0, j0, r0, b', a, b} /\ b'{1} \in EU /\ a{1} \in EU);
-    1: by inline *; auto; smt(N.dZ_ll get_setE supp_duniform).
+    1: by inline *; auto => /> ; smt(N.dZ_ll get_setE supp_duniform).
   inline *; auto => /> &2 _ _ b'EU aEU.
   by smt(expM exp_inj mulA mulC powM pow_inv_f).
 - proc; inline Gs(OAEU, OBEU).ddhgen G''(OAEU, OBEU).ddhgen.
@@ -1642,16 +1642,16 @@ call (: ={OAEU.m, OBEU.m, G2.ca, G2.cb, glob G, glob Gs} /\
                          rcondf{2} 2; auto; rcondf{2} 2; auto | ].
     if; [smt() | rcondf{1} 2; 1: (by auto; call (: true); auto; smt());
                  rcondf{2} 3; 1: (by auto; call (: true); auto; smt());
-                 by inline *; auto; smt(get_setE supp_duniform) | ].
+                 by inline *; auto => /> ; smt(get_setE supp_duniform) | ].
     if; 1, 3: by auto; smt(e_EU).
-    by inline *; auto; smt(get_setE supp_duniform).
+    by inline *; auto => /> ; smt(get_setE supp_duniform).
   + sp 8 8; if; [smt() | rcondf{1} 2; auto; rcondf{1} 2; auto;
                          rcondf{2} 2; auto; rcondf{2} 2; auto; smt() | ].
     if; [smt() | rcondf{1} 2; 1: (by auto; call (: true); auto; smt());
                  rcondf{2} 3; 1: (by auto; call (: true); auto; smt());
-                 by inline *; auto; smt(get_setE supp_duniform) | ].
-    if; 1, 3: by auto; smt(e_EU).
-    by inline *; auto; smt(get_setE supp_duniform).
+                 by inline *; auto => /> ; smt(get_setE supp_duniform) | ].
+    if; 1, 3: by auto => /> ; smt(e_EU).
+    by inline *; auto => /> ; smt(get_setE supp_duniform).
 - by auto; smt(mem_empty).
 qed.
 
@@ -1843,7 +1843,7 @@ op splitO (m m0 m1 : (int, Z) fmap) (t : int -> bool) =
   (forall x, x \in m1 =>   t x) /\
   (forall x, x \in m0 => ! t x).
 
-local equiv Ok_Ok2 &m (D <: DistinguisherO_i {OEU, O0EU, O1EU, Ok}) :
+local equiv Ok_Ok2 &m (D <: DistinguisherO_i {-OEU, -O0EU, -O1EU, -Ok}) :
   MainDO(D, Ok(OEU)).main ~ MainDO(D, Ok2(O0EU, O1EU)).main :
   ={arg, glob D} ==>
   ={glob D} /\
@@ -1854,7 +1854,7 @@ call (: ={glob Ok} /\ splitO OEU.m{1} O0EU.m{2} O1EU.m{2} (nth false Ok.il){2}).
 - by proc; auto.
 - by proc; auto.
 - by proc; auto.
-- proc; inline *; sp; if; [ | if; [ | sp; if{2} | ] | ]; auto.
+- proc; inline *; sp; if; [ | if; [ | sp; if{2} | ] | ]; auto => /> .
   + by smt(get_setE mergeE set_union_map_r).
   + by smt(get_setE mergeE set_union_map_l).
 - proc; inline *; sp; if; 1, 3: by auto.
@@ -1930,8 +1930,8 @@ local module Ok2X (O0 : FROEU.RO, O1 : FROG.RO) : O_i = {
 
 (* The up to bad reasoning that results in having a => and not a <=>
    in the postcondition of the following equiv statement. *)
-local lemma Ok2_Ok2X &m (D <: DistinguisherO_i {O0EU, O1EU, O1G, Ok}) :
-  (forall (O <: O{D}),
+local lemma Ok2_Ok2X &m (D <: DistinguisherO_i {-O0EU, -O1EU, -O1G, -Ok}) :
+  (forall (O <: O{-D}),
      islossless O.get_cs => islossless O.set_bad => islossless O.set_bad' =>
      islossless O.oZ => islossless O.oG =>
      islossless D(O).main) =>
@@ -2017,7 +2017,7 @@ move => x_EU; rewrite !dmap_duniform; 1, 2: smt(exp_inj exp_inj').
 by apply eq_duniformP; move: (img_exp _ x_EU); smt(mem_oflist).
 qed.
 
-local lemma Ok2X_Ok2x &m x y (D <: DistinguisherO_i {O0EU, O1EU, O1G, Ok}) :
+local lemma Ok2X_Ok2x &m x y (D <: DistinguisherO_i {-O0EU, -O1EU, -O1G, -Ok}) :
   x \in EU =>
   y \in EU =>
   hoare [MainDO(D, Ok2x(O0EU, O1EU)).init :
@@ -2092,7 +2092,7 @@ local module Okx (O : FROEU.RO) : O_i = {
   }
 }.
 
-local lemma Ok2x_Okx &m x y (D <: DistinguisherO_i {OEU, O0EU, O1EU, Ok}) :
+local lemma Ok2x_Okx &m x y (D <: DistinguisherO_i {-OEU, -O0EU, -O1EU, -Ok}) :
   x \in EU =>
   y \in EU =>
   hoare [MainDO(D, Ok2x(O0EU, O1EU)).init :
@@ -2124,10 +2124,10 @@ call (: Ok.x{1} \in EU /\ ={glob Ok} /\
   by auto; smt(mem_empty merge_empty).
 qed.
 
-local lemma Ok_Okx &m x y (D <: DistinguisherO_i {OEU, O0EU, O1EU, O1G, Ok}) :
+local lemma Ok_Okx &m x y (D <: DistinguisherO_i {-OEU, -O0EU, -O1EU, -O1G, -Ok}) :
   x \in EU =>
   y \in EU =>
-  (forall (O <: O{D}),
+  (forall (O <: O{-D}),
      islossless O.get_cs => islossless O.set_bad => islossless O.set_bad' =>
      islossless O.oZ => islossless O.oG =>
      islossless D(O).main) =>
@@ -2389,7 +2389,7 @@ local module Ds (OA : O) = {
   }
 }.
 
-local lemma Ds_ll (O <: O{Ds}) :
+local lemma Ds_ll (O <: O{-Ds}) :
   islossless O.get_cs =>
   islossless O.set_bad =>
   islossless O.set_bad' =>
@@ -2970,7 +2970,7 @@ local module Dx (OB : O) = {
   }
 }.
 
-local lemma Dx_ll (O <: O{Dx}) :
+local lemma Dx_ll (O <: O{-Dx}) :
   islossless O.get_cs =>
   islossless O.set_bad =>
   islossless O.set_bad' =>
@@ -3339,11 +3339,11 @@ call (: ! nstop Gs.ia Gs.ib G2.ca G2.cb \/
 - by move => *; proc; inline *; sp; if; auto; smt(dEU_ll).
 - by move => *; proc; inline *; sp; if; auto; smt(dEU_ll).
 - by move => *; proc; inline *; sp; if; auto; smt(dEU_ll).
-- by proc; inline *; sp; if; [ | if; auto | ]; auto;
+- by proc; inline *; sp; if; [ | if; auto | ]; auto => /> ;
      smt(expM get_setE get_set_sameE supp_duniform memE).
 - by move => *; proc; inline *; sp; if; auto; if; auto; smt(dEU_ll).
 - by move => *; proc; inline *; sp; if; auto; if; auto; smt(dEU_ll).
-- by proc; inline *; sp; if; [ | if; auto | ]; auto;
+- by proc; inline *; sp; if; [ | if; auto | ]; auto => /> ;
      smt(expM get_setE get_set_sameE supp_duniform memE).
 - by move => *; proc; inline *; sp; if; auto; if; auto; smt(dEU_ll).
 - by move => *; proc; inline *; sp; if; auto; if; auto; smt(dEU_ll).
@@ -3357,7 +3357,7 @@ call (: ! nstop Gs.ia Gs.ib G2.ca G2.cb \/
              (Gx.x = x /\ Gx.y = y){2} /\ S.set{1} = G.bad{2} /\
              (forall i, i \in OAEU.m => oget (OAEU.m.[i]) \in EU){2} /\
              (forall j, j \in OBEU.m => oget (OBEU.m.[j]) \in EU){2});
-    1: by inline *; auto; smt(get_setE get_set_sameE memE supp_duniform).
+    1: by inline *; auto => /> ; smt(get_setE get_set_sameE memE supp_duniform).
   inline *; auto => /> &1 &2.
   move: (i0{2}) (j0{2}) (G2.ca{2}) (G2.cb{2}) => i j ca cb *.
   (case: (i \in ca) => [i_ca | iNca]); (case: (j \in cb) => [j_cb | jNcb] /=);
@@ -3472,14 +3472,14 @@ call (: ! nstop Gs.ia Gs.ib G2.ca G2.cb \/
              ={i'0, Y0, Z0, a}); inline *.
   + sp 9 9; if; [smt() | rcondf{1} 2; auto; rcondf{1} 2; auto;
                          rcondf{2} 2; auto; rcondf{2} 2; auto; smt() | ].
-    if; [smt() | | if; auto; smt(expM get_setE supp_duniform)].
+    if; [smt() | | if; auto => /> ; smt(expM get_setE supp_duniform)].
     rcondf{1} 7; 1: by auto; smt().
-    by rcondf{2} 7; auto; smt(expM get_setE supp_duniform).
+    by rcondf{2} 7; auto => /> ; smt(expM get_setE supp_duniform).
   + sp 4 4; if; [smt() | rcondf{1} 2; auto; rcondf{1} 2; auto;
                          rcondf{2} 2; auto; rcondf{2} 2; auto; smt() | ].
-    if; [smt() | | if; auto; smt(expM get_setE supp_duniform)].
+    if; [smt() | | if; auto => /> ; smt(expM get_setE supp_duniform)].
     rcondf{1} 7; 1: by auto; smt().
-    by rcondf{2} 7; auto; smt(expM get_setE supp_duniform).
+    by rcondf{2} 7; auto => /> ; smt(expM get_setE supp_duniform).
 - move => &2 *; proc; inline S.ddhgen.
   seq 7 : true; auto; [seq 6 : true; auto | by inline *; auto].
   + inline *; sp 9; if; [rcondf 2; auto; rcondf 2; auto | ].
@@ -3652,10 +3652,10 @@ qed.
 
 section.
 
-declare module A <: Adversary {G1, G2, G, S, Count,
-                               OAEU, OBEU, OEU, O0EU, O1EU, O1G}.
+declare module A <: Adversary {-G1, -G2, -G, -S, -Count,
+                               -OAEU, -OBEU, -OEU, -O0EU, -O1EU, -O1G}.
 
-declare axiom A_ll : forall (O <: GDH_RSR_Oracles{A}),
+declare axiom A_ll : forall (O <: GDH_RSR_Oracles{-A}),
   islossless O.oA =>
   islossless O.oB =>
   islossless O.oa =>
@@ -3666,7 +3666,7 @@ declare axiom A_ll : forall (O <: GDH_RSR_Oracles{A}),
   islossless O.ddhgen =>
   islossless A(O).guess.
 
-declare axiom A_bound : forall (O <: GDH_RSR_Oracles{Count, A}),
+declare axiom A_bound : forall (O <: GDH_RSR_Oracles{-Count, -A}),
   hoare [A(Count(O)).guess :
          Count.ca      = 0       /\ Count.cb      = 0 /\
          Count.cddhma  = 0       /\ Count.cddhmb  = 0 ==>

@@ -290,8 +290,8 @@ module BS (A : Adversary) (O : CCA_Oracle) = {
 
 section.
 
-declare module A <: Adversary {Real, Ideal, IdealS,
-                              C.CCA_Oracle, B, BS, CountCCA, CountICCA}.
+declare module A <: Adversary {-Real, -Ideal, -IdealS,
+                              -C.CCA_Oracle, -B, -BS, -CountCCA, -CountICCA}.
 
 module S : Scheme = {
   proc kg () : pkey * skey = {
@@ -319,10 +319,10 @@ module S : Scheme = {
   }
 }.
 
-declare axiom A_bound (O <: Oracle {A, CountICCA}) : hoare [CountAdv(A, O).main :
+declare axiom A_bound (O <: Oracle {-A, -CountICCA}) : hoare [CountAdv(A, O).main :
                true ==> CountICCA.ndec <= Ndec /\ CountICCA.nenc <= Nenc].
 
-equiv AB_bound (O <: CCA_Oracle{CountICCA, CountCCA, A, B}) :
+equiv AB_bound (O <: CCA_Oracle{-CountICCA, -CountCCA, -A, -B}) :
   C.CountAdv(B(A), O).main ~ CountAdv(A, B(A, O).O').main :
   ={glob A, glob O} /\ B.cs{2} = [] /\ arg{1} = B.pk{2} ==>
   CountCCA.ndec{1} <= CountICCA.ndec{2} /\ CountCCA.nenc{1} = CountICCA.nenc{2}.
@@ -337,7 +337,7 @@ call (: ={glob O, glob B} /\ CountCCA.ndec{1} <= CountICCA.ndec{2} /\
   by sp; call (: true); auto => /> /#.
 qed.
 
-lemma B_bound (O <: CCA_Oracle{CountCCA, CountICCA, A, B}) :
+lemma B_bound (O <: CCA_Oracle{-CountCCA, -CountICCA, -A, -B}) :
   hoare [C.CountAdv(B(A), O).main :
     true ==> CountCCA.ndec <= Ndec /\ CountCCA.nenc <= Nenc].
 proof.

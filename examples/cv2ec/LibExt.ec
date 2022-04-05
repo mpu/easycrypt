@@ -1,4 +1,4 @@
-require import AllCore List Finite Distr DBool DInterval DList LorR FSet SmtMap.
+require import AllCore List Finite Distr DBool DInterval DList FSet SmtMap.
 
 (* * Preliminaries *)
 

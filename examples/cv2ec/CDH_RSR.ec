@@ -582,10 +582,10 @@ proof. by smt(dEU_ll dmap_ll). qed.
 
 section.
 
-declare module A <: Adversary {G1, G2, G, S, Count,
-                              OAEU, OBEU, OEU, O0EU, O1EU, O1G}.
+declare module A <: Adversary {-G1, -G2, -G, -S, -Count,
+                              -OAEU, -OBEU, -OEU, -O0EU, -O1EU, -O1G}.
 
-declare axiom A_ll : forall (O <: CDH_RSR_Oracles{A}),
+declare axiom A_ll : forall (O <: CDH_RSR_Oracles{-A}),
   islossless O.oA =>
   islossless O.oB =>
   islossless O.oa =>
@@ -593,7 +593,7 @@ declare axiom A_ll : forall (O <: CDH_RSR_Oracles{A}),
   islossless O.ddh =>
   islossless A(O).guess.
 
-declare axiom A_bound : forall (O <: CDH_RSR_Oracles{Count, A}),
+declare axiom A_bound : forall (O <: CDH_RSR_Oracles{-Count, -A}),
   hoare [A(Count(O)).guess :
          Count.ca = 0     /\ Count.cb = 0     /\ Count.cddh = 0 ==>
          Count.ca <= q_oa /\ Count.cb <= q_ob /\ Count.cddh <= q_ddh].
@@ -1280,7 +1280,7 @@ op splitO (m m0 m1 : (int, Z) fmap) (t : int -> bool) =
   (forall x, x \in m1 =>   t x) /\
   (forall x, x \in m0 => ! t x).
 
-local equiv Ok_Ok2 &m (D <: DistinguisherO_i {OEU, O0EU, O1EU, Ok}) :
+local equiv Ok_Ok2 &m (D <: DistinguisherO_i {-OEU, -O0EU, -O1EU, -Ok}) :
   MainDO(D, Ok(OEU)).main ~ MainDO(D, Ok2(O0EU, O1EU)).main :
   ={arg, glob D} ==>
   ={glob D} /\ ((is_ok Ok.il Ok.cs Ok.ik){1} <=> (is_ok Ok.il Ok.cs Ok.ik){2}).
@@ -1290,8 +1290,8 @@ call (: ={glob Ok} /\ splitO OEU.m{1} O0EU.m{2} O1EU.m{2} (nth false Ok.il){2}).
 - by proc; auto.
 - by proc; auto.
 - proc; inline *; sp; if; [ | if; [ | sp; if{2} | ] | ]; auto.
-  + by smt(get_setE mergeE set_union_map_r).
-  + by smt(get_setE mergeE set_union_map_l).
+  + by move => />; smt(get_setE mergeE set_union_map_r).
+  + by move => />; smt(get_setE mergeE set_union_map_l).
 - proc; inline *; sp; if; 1, 3: by auto.
   if{2}; auto; 1: smt(get_setE mem_set mergeE set_union_map_r).
   by smt(get_setE mem_set mergeE set_union_map_l).
@@ -1354,8 +1354,8 @@ local module Ok2X (O0 : FROEU.RO, O1 : FROG.RO) : O_i = {
 
 (* The up to bad reasoning that results in having a => and not a <=>
    in the postcondition of the following equiv statement. *)
-local lemma Ok2_Ok2X &m (D <: DistinguisherO_i {O0EU, O1EU, O1G, Ok}) :
-  (forall (O <: O{D}),
+local lemma Ok2_Ok2X &m (D <: DistinguisherO_i {-O0EU, -O1EU, -O1G, -Ok}) :
+  (forall (O <: O{-D}),
      islossless O.get_cs => islossless O.set_bad =>
      islossless O.oZ => islossless O.oG =>
      islossless D(O).main) =>
@@ -1438,7 +1438,7 @@ move => x_EU; rewrite !dmap_duniform; 1, 2: smt(exp_inj exp_inj').
 by apply eq_duniformP; move: (img_exp _ x_EU); smt(mem_oflist).
 qed.
 
-local lemma Ok2X_Ok2x &m x y (D <: DistinguisherO_i {O0EU, O1EU, O1G, Ok}) :
+local lemma Ok2X_Ok2x &m x y (D <: DistinguisherO_i {-O0EU, -O1EU, -O1G, -Ok}) :
   x \in EU =>
   y \in EU =>
   hoare [MainDO(D, Ok2x(O0EU, O1EU)).init :
@@ -1511,7 +1511,7 @@ local module Okx (O : FROEU.RO) : O_i = {
   }
 }.
 
-local lemma Ok2x_Okx &m x y (D <: DistinguisherO_i {OEU, O0EU, O1EU, Ok}) :
+local lemma Ok2x_Okx &m x y (D <: DistinguisherO_i {-OEU, -O0EU, -O1EU, -Ok}) :
   x \in EU =>
   y \in EU =>
   hoare [MainDO(D, Ok2x(O0EU, O1EU)).init :
@@ -1541,10 +1541,10 @@ call (: Ok.x{1} \in EU /\ ={glob Ok} /\
   by auto; smt(mem_empty merge_empty).
 qed.
 
-local lemma Ok_Okx &m x y (D <: DistinguisherO_i {OEU, O0EU, O1EU, O1G, Ok}) :
+local lemma Ok_Okx &m x y (D <: DistinguisherO_i {-OEU, -O0EU, -O1EU, -O1G, -Ok}) :
   x \in EU =>
   y \in EU =>
-  (forall (O <: O{D}),
+  (forall (O <: O{-D}),
      islossless O.get_cs => islossless O.set_bad =>
      islossless O.oZ => islossless O.oG =>
      islossless D(O).main) =>
@@ -1694,7 +1694,7 @@ local module Dk (OA : O) = {
   }
 }.
 
-local lemma Dk_ll (O <: O{Dk}) :
+local lemma Dk_ll (O <: O{-Dk}) :
   islossless O.get_cs =>
   islossless O.set_bad =>
   islossless O.oZ =>
@@ -1939,7 +1939,7 @@ local module Dkx (OB : O) = {
   }
 }.
 
-local lemma Dkx_ll (O <: O{Dkx}) :
+local lemma Dkx_ll (O <: O{-Dkx}) :
   islossless O.get_cs =>
   islossless O.set_bad =>
   islossless O.oZ =>
@@ -2047,7 +2047,7 @@ have -> :   Pr[Game_xy(Gkx(OAEU, OBEU), A).main(x, y) @ &m :
                G2.cb{1} = cb{2} /\ 0 <= j0{1} < nb);
       2: by inline *; auto => />.
     swap 1 1; wp; call (: ={OAEU.m}); auto.
-    by inline *; sp; rcondt{2} 1; auto; smt(expM mulC).
+    by inline *; sp; rcondt{2} 1; auto => /> ; smt(expM mulC).
 apply (ler_trans (Pr[MainDO(Dkx, Okx(OEU)).main(x, y) @ &m :
                      G.bad /\ is_ok Gk.ia G2.ca Gk.i_k /\
                               is_ok Ok.il Ok.cs Ok.ik])).
@@ -2072,7 +2072,7 @@ call (: ={OAEU.m, G2.ca, G.bad} /\ ={m}(OEU, OBEU) /\
              i1{1} = i0{2} /\ j1{1} = j0{2} /\ r1{1} = r0{2} /\
              cb{1} = G2.cb{2} /\ 0 <= j1{1} < nb); 2: by inline *; auto => />.
   swap 1 1; wp; call (: ={OAEU.m}); auto.
-  by inline *; sp; rcondt{1} 1; auto; smt(expM mulC).
+  by inline *; sp; rcondt{1} 1; auto => />; smt(expM mulC).
 qed.
 
 local lemma Gkxy_S &m x y :
@@ -2106,11 +2106,11 @@ call (: ! nstop Gk.ia Gk.ib G2.ca G2.cb \/
 - by move => *; proc; inline *; sp; if; auto; smt(dEU_ll).
 - by move => *; proc; inline *; sp; if; auto; smt(dEU_ll).
 - by move => *; proc; inline *; sp; if; auto; smt(dEU_ll).
-- by proc; inline *; sp; if; [ | if; auto | ]; auto;
+- by proc; inline *; sp; if; [ | if; auto | ]; auto => />;
      smt(expM get_setE get_set_sameE supp_duniform memE).
 - by move => *; proc; inline *; sp; if; auto; if; auto; smt(dEU_ll).
 - by move => *; proc; inline *; sp; if; auto; if; auto; smt(dEU_ll).
-- by proc; inline *; sp; if; [ | if; auto | ]; auto;
+- proc; inline *; sp; if; [ | if; auto | ]; auto => />;
      smt(expM get_setE get_set_sameE supp_duniform memE).
 - by move => *; proc; inline *; sp; if; auto; if; auto; smt(dEU_ll).
 - by move => *; proc; inline *; sp; if; auto; if; auto; smt(dEU_ll).
@@ -2124,7 +2124,7 @@ call (: ! nstop Gk.ia Gk.ib G2.ca G2.cb \/
              (! G.bad /\ Gk.cddh <= Gk.k){2} /\
              (forall i, i \in OAEU.m => oget (OAEU.m.[i]) \in EU){2} /\
              (forall j, j \in OBEU.m => oget (OBEU.m.[j]) \in EU){2});
-    1: by inline *; auto; smt(get_setE get_set_sameE memE supp_duniform).
+    1: by inline *; auto => />; smt(get_setE get_set_sameE memE supp_duniform).
   auto => /> &2; move: (i0{2}) (j0{2}) (G2.ca{2}) (G2.cb{2}) => i j ca cb *.
   (case: (i \in ca) => [i_ca | iNca]); (case: (j \in cb) => [j_cb | jNcb] /=);
     1..3: smt(expM mulA mulC).
@@ -2269,10 +2269,10 @@ qed.
 
 section.
 
-declare module A <: Adversary {G1, G2, G, S, Count,
-                               OAEU, OBEU, OEU, O0EU, O1EU, O1G}.
+declare module A <: Adversary {-G1, -G2, -G, -S, -Count,
+                               -OAEU, -OBEU, -OEU, -O0EU, -O1EU, -O1G}.
 
-declare axiom A_ll : forall (O <: CDH_RSR_Oracles{A}),
+declare axiom A_ll : forall (O <: CDH_RSR_Oracles{-A}),
   islossless O.oA =>
   islossless O.oB =>
   islossless O.oa =>
@@ -2280,7 +2280,7 @@ declare axiom A_ll : forall (O <: CDH_RSR_Oracles{A}),
   islossless O.ddh =>
   islossless A(O).guess.
 
-declare axiom A_bound : forall (O <: CDH_RSR_Oracles{Count, A}),
+declare axiom A_bound : forall (O <: CDH_RSR_Oracles{-Count, -A}),
   hoare [A(Count(O)).guess :
          Count.ca = 0     /\ Count.cb = 0     /\ Count.cddh = 0 ==>
          Count.ca <= q_oa /\ Count.cb <= q_ob /\ Count.cddh <= q_ddh].
