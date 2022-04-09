@@ -7,11 +7,14 @@
  * -------------------------------------------------------------------- *)
 
 require import AllCore List Distr DBool DInterval.
-require (*--*) LorR Hybrid.
+require (*--*) LorR Hybrid LR.
 (*-- *) import StdOrder.RealOrder.
 
 require import LibExt.
 
+(* Abstract types for keys and messages/ciphertexts                     *)
+(* and a module type for public-key encryption schemes                  *)
+(* (shared by all security notions)                                     *)
 
 type pkey, skey, plaintext, ciphertext.
 
@@ -21,11 +24,18 @@ module type Scheme = {
   proc dec (sk : skey, c : ciphertext) : plaintext option
 }.
 
-(* The IND-CCA2 security notion *)
+
+(*******************************)
+(* IND-CCA2 security           *)
+(*******************************)
 abstract theory IND_CCA2.
 
+(*** parameters ****)
 op Ndec : int.
 op Nenc : { int | 0 < Nenc } as Nenc_gt0.
+
+
+(*** module types ***)
 
 module type CCA_Oracle = {
   proc l_or_r (m0 m1 : plaintext) : ciphertext
@@ -41,42 +51,11 @@ module type Adversary (O : CCA_Oracle) = {
   proc main (pk : pkey) : bool
 }.
 
-(* Generic "left or right" oracles and default implementations *)
+clone import LR with type input <- plaintext proof*.
 
-module type LR = {
-  proc init () : unit
-  proc l_or_r (m0 m1 : plaintext) : plaintext
-}.
+(*** Implementation of the Secutity game ***)
 
-module LorR : LR = {
-  var b : bool
-
-  proc init () = {
-    b <$ {0,1};
-  }
-
-  proc l_or_r (m0 m1 : plaintext) = {
-    return b?m0:m1;
-  }
-}.
-
-module L : LR = {
-  proc init () = { }
-
-  proc l_or_r (m0 m1 : plaintext) = {
-    return m0;
-  }
-}.
-
-module R : LR = {
-  proc init () = { }
-
-  proc l_or_r (m0 m1 : plaintext) = {
-    return m1;
-  }
-}.
-
-(* Oracles for CCA games - paramerized by LR *)
+(* Oracles - paramerized by message selection function *)
 module CCA_Oracle (S : Scheme, LR : LR) : CCA_Oracle_i = {
   var sk : skey
   var pk : pkey
@@ -145,19 +124,25 @@ module CountAdv (A : Adversary) (O : CCA_Oracle) = {
   }
 }.
 
+(*** IND-CCA2 Games *)
+
 (* Guessing variant of the IND-CCA2 Game *)
 module CCA (S : Scheme, A : Adversary) = {
+  module O = CCA_Oracle(S, LorR)
+
   proc main () : bool = {
     var b';
 
-    CCA_Oracle(S, LorR).init();
-    b' <@ CountAdv(A,CCA_Oracle(S, LorR)).main(CCA_Oracle.pk);
+    O.init();
+    b' <@ CountAdv(A,O).main(O.pk);
     return LorR.b = b';
   }
 }.
 
-(* Left - Righ variant of the IND-CCA2 Game *)
+(* Left/Right variant of the IND-CCA2 Game *)
 module CCA_ (S : Scheme, A : Adversary, LR : LR) = {
+  module O = CCA_Oracle(S, LR)
+  
   proc main() : bool = {
     var b';
 
@@ -170,6 +155,8 @@ module CCA_ (S : Scheme, A : Adversary, LR : LR) = {
 
 module CCA_L (S : Scheme, A : Adversary) = CCA_(S, A, L).
 module CCA_R (S : Scheme, A : Adversary) = CCA_(S, A, R).
+
+(*** Reductions ***)
 
 (* "Hybrid" aversary, making at most one call to [l_or_r] *)
 module B (S : Scheme, A : Adversary, O : CCA_Oracle) = {
@@ -189,6 +176,7 @@ module B (S : Scheme, A : Adversary, O : CCA_Oracle) = {
       return c;
     }
 
+    (* proc dec = O.dec *)
     proc dec (c : ciphertext) : plaintext option = {
       var m;
 
@@ -210,52 +198,65 @@ module B (S : Scheme, A : Adversary, O : CCA_Oracle) = {
   }
 }.
 
-section.
+(*** Reduction Proofs ***)
+section PROOF.
 
+(* Assume scheme with terminating procedures *)
 declare module S <: Scheme {-CCA_Oracle, -LorR, -B, -CountCCA, -CountAdv}.
+declare axiom kg_ll : islossless S.kg.
+declare axiom enc_ll : islossless S.enc.
+declare axiom dec_ll : islossless S.dec.
+
+(* Assume a (terminating) adversary against IND-CCA2 *)
 declare module A <: Adversary {-CCA_Oracle, -S, -LorR, -B, -CountCCA, -CountAdv}.
 
 declare axiom A_ll (O <: CCA_Oracle {-A}) :
   islossless O.l_or_r => islossless O.dec => islossless A(O).main.
 
-declare axiom kg_ll : islossless S.kg.
-declare axiom enc_ll : islossless S.enc.
-declare axiom dec_ll : islossless S.dec.
 
+(* Assume that A makes at most Nenc/Ndec queries to enc/dec *)
 declare axiom A_bound (O <: CCA_Oracle {-A, -CountCCA}) :
-  hoare[ CountAdv(A, O).main : true ==> CountCCA.ndec <= Ndec /\ CountCCA.nenc <= Nenc].
+  hoare[ CountAdv(A, O).main : 
+         true ==> 
+         CountCCA.ndec <= Ndec /\ CountCCA.nenc <= Nenc].
 
+(* Restatement without the AdvCount wrapper *)
 lemma A_bound' (O <: CCA_Oracle {-A, -CountCCA}) :
   hoare[ A(CountCCA(O)).main :
-    CountCCA.ndec = 0 /\ CountCCA.nenc = 0 ==> CountCCA.ndec <= Ndec /\ CountCCA.nenc <= Nenc].
+    CountCCA.ndec = 0 /\ CountCCA.nenc = 0 ==> 
+    CountCCA.ndec <= Ndec /\ CountCCA.nenc <= Nenc].
 proof.
 suff E : equiv [A(CountCCA(O)).main ~ CountAdv(A, O).main :
          ={glob A, glob O, arg} /\ CountCCA.ndec{1} = 0 /\ CountCCA.nenc{1} = 0 ==>
          ={glob CountCCA}].
 - by conseq E (A_bound (<: O)); smt().
-- proc *; inline *; sp; auto; call (: ={glob O, glob CountCCA}); try by sim.
-  by skip => />.
+- proc*; inline*; auto. 
+  call (: ={glob O, glob CountCCA}); 1,2: by sim.
+  by auto.
 qed.
 
-local clone LorR as LR with type input <- unit proof*.
+(*** Equivalence of the Guessing game and Left/Right Game ***)
+
+local clone LorR as LoR with type input <- unit proof*.
 
 lemma CCA_LR &m :
   `| Pr[ CCA(S, A).main() @ &m : res] - 1.0/2.0 | =
-  1%r / 2%r * `| Pr[ CCA_L(S, A).main() @ &m : res ] - Pr[ CCA_R(S, A).main() @ &m : res ] |.
+  1%r / 2%r * `| Pr[ CCA_L(S, A).main() @ &m : res ] - 
+                 Pr[ CCA_R(S, A).main() @ &m : res ] |.
 proof.
-rewrite (LR.pr_AdvLR_AdvRndLR (CCA_L(S, A)) (CCA_R(S, A)) &m).
-- byphoare => //.
-  islossless; last by apply: kg_ll.
+rewrite (LoR.pr_AdvLR_AdvRndLR (CCA_L(S, A)) (CCA_R(S, A)) &m).
+- byphoare => //. 
+  islossless; last by apply: kg_ll. 
   apply: (A_ll(CountCCA(CCA_Oracle(S, R)))); first by islossless; apply: enc_ll.
   islossless; apply: dec_ll.
 suff <- : Pr[CCA(S, A).main() @ &m : res] =
-          Pr[LR.RandomLR(CCA_L(S, A),CCA_R(S, A)).main() @ &m : res] by smt().
-byequiv=> //. proc; inline *.
+          Pr[LoR.RandomLR(CCA_L(S, A),CCA_R(S, A)).main() @ &m : res] by smt().
+byequiv=> //; proc; inline *.
 seq 1 1 : (={glob A,glob S} /\ LorR.b{1} = b{2}); first by rnd.
 if{2}; wp. 
-- call (: ={glob S, glob CCA_Oracle} /\ LorR.b{1}).
+- call (: ={glob S, glob CCA_Oracle} /\ LorR.b{1}). 
   + by proc; inline *; sp; auto; call (: true); auto => />.
-  + by sim / (LorR.b{1}) : (={res,glob S, glob CCA_Oracle}).
+  + by sim / (LorR.b{1}) : (={res,glob S, glob CCA_Oracle}). 
   + by wp; call (: true); auto => />.
 - call (: ={glob S, glob CCA_Oracle} /\ !LorR.b{1}).
   + by proc; inline *; sp; auto; call (: true); auto => />.
@@ -263,35 +264,14 @@ if{2}; wp.
   + by wp; call (: true); auto => />.
 qed.
 
-local module LRB (O : CCA_Oracle) : CCA_Oracle = {
-  import var B
-
-  proc l_or_r (m0 m1 : plaintext) = {
-    var c;
-
-    if   (iS < i) c <- S.enc(pk, m0);
-    elif (i = iS) c <- O.l_or_r(m0, m1);
-    else          c <- S.enc(pk, m1);
-    i <- i + 1;
-    cs <- c :: cs;
-    return c;
-  }
-
-  proc dec (c : ciphertext) : plaintext option = {
-    var m;
-
-    m <- witness;
-    if (! c \in cs) m <@ O.dec(c);
-    return m;
-  }
-}.
-
+(* B makes at most one query to enc *)
 lemma B_bound (O <: CCA_Oracle {-S, -CountCCA, -A, -B}) :
-  hoare[ CountAdv(B(S, A), O).main : true ==> CountCCA.ndec <= Ndec /\ CountCCA.nenc <= 1].
+  hoare[ CountAdv(B(S, A), O).main : 
+         true ==> CountCCA.ndec <= Ndec /\ CountCCA.nenc <= 1].
 proof.
 proc; inline *; swap 5 -2; sp; auto.
-  conseq (: CountCCA.ndec = 0 ==> CountCCA.ndec <= Ndec)
-         (: CountCCA.nenc = 0 ==> CountCCA.nenc <= 1) => //.
+conseq (: CountCCA.ndec = 0 ==> CountCCA.ndec <= Ndec)
+       (: CountCCA.nenc = 0 ==> CountCCA.nenc <= 1) => //.
 - call (: CountCCA.nenc = b2i (B.iS < B.i)).
   + proc; inline *.
     if; first by wp; call (: true); skip; smt().
@@ -299,23 +279,19 @@ proc; inline *; swap 5 -2; sp; auto.
     wp; sp; call (: true); skip; smt().
   + by conseq />.
   + auto => />; smt(supp_dinter).
-- call (: CountCCA.ndec = 0 ==> CountCCA.ndec <= Ndec); 2: auto.
-  suff E : equiv[ A(B(S, A, CountCCA(O)).O').main ~ A(CountCCA(LRB(O))).main :
-           ={glob O, glob S, glob A, B.iS, B.i, B.pk, CountCCA.ndec, pk} /\
-           CountCCA.ndec{1} = 0 /\
-           forall (c : ciphertext), c \in B.cs{1} <=> c \in B.cs{2} ==>
-           CountCCA.ndec{1} <= CountCCA.ndec{2}];
-  1: conseq E (A_bound' (<: LRB(O))) => /> /#.
-  proc *; inline *; sp; auto.
-  call ( : ={glob O, glob S, B.iS, B.i, B.pk} /\
-           (forall c, c \in B.cs{1} <=> c \in B.cs{2}) /\
-           CountCCA.ndec{1} <= CountCCA.ndec{2}); 3: skip => />.
-  - proc; inline *; sp; auto.
-    if => //; 1: by call (: true); skip => /> /#.
-    if => //; 1: wp; call (: true); auto => /> /#.
-  - proc; inline *; sp; auto.
-    if; 1: move => /> /#; 2: skip => /> /#.
-    sp; auto; call (: true); skip => /> /#.
+call (: CountCCA.ndec = 0 ==> CountCCA.ndec <= Ndec); 2: by auto.
+(* lift the query counting from O to B.O' *)
+suff E : equiv [ A(B(S, A, CountCCA(O)).O').main ~ A(CountCCA(B(S,A,O).O')).main : 
+   ={glob O, glob S, glob A,B.iS, B.i, B.pk, CountCCA.ndec, pk, B.cs} /\ 
+   CountCCA.ndec{1} = 0 ==> CountCCA.ndec{1} <= CountCCA.ndec{2} ].
++ by conseq E (A_bound' (<: B(S,A,O).O')) => /> /#.
+proc* ; inline*.   
+call (: ={glob O, glob S, B.iS, B.i, B.pk, B.cs} /\ CountCCA.ndec{1} <= CountCCA.ndec{2}).  
++ proc; inline*. conseq />. sim.
++ proc; inline*; sp. if => //.
+  * auto; call(: true); auto => /> /#. 
+  * auto => /> /#. 
+by auto.
 qed.
 
 local clone Hybrid as Hyb with
@@ -413,7 +389,8 @@ proof.
 qed.
 
 local lemma CCA_Ln &m :
-   Pr[ CCA_L(S, A).main() @ &m : res ] = Pr[ Hyb.Ln(Ob, A').main() @ &m : res ].
+   Pr[ CCA_L(S, A).main()    @ &m : res ] = 
+   Pr[ Hyb.Ln(Ob, A').main() @ &m : res ].
 proof.
 byequiv => //; proc. inline *; sp; wp; rcondt{2} 1 => //.
 call (: ={glob S} /\ ={sk, pk, cs}(CCA_Oracle,Ob)).
@@ -425,7 +402,8 @@ call (: ={glob S} /\ ={sk, pk, cs}(CCA_Oracle,Ob)).
 qed.
 
 local lemma CCA_Rn &m :
-   Pr[ CCA_R(S, A).main() @ &m : res ] = Pr[ Hyb.Rn(Ob, A').main() @ &m : res].
+   Pr[ CCA_R(S, A).main()    @ &m : res ] = 
+   Pr[ Hyb.Rn(Ob, A').main() @ &m : res ].
 proof.
 byequiv => //; proc. inline *; sp; wp; rcondt{2} 1 => //.
 call (: ={glob S} /\ ={sk,pk,cs}(CCA_Oracle,Ob)).
@@ -437,7 +415,8 @@ call (: ={glob S} /\ ={sk,pk,cs}(CCA_Oracle,Ob)).
 qed.
 
 local lemma A'_call (O <: Hyb.Orcl{-Hyb.Count, -A'}) :
-  hoare[ Hyb.AdvCount(A'(Ob, Hyb.OrclCount(O))).main : true ==> Hyb.Count.c <= Nenc].
+  hoare[ Hyb.AdvCount(A'(Ob, Hyb.OrclCount(O))).main : 
+         true ==> Hyb.Count.c <= Nenc].
 proof.
 proc. inline A'(Ob, Hyb.OrclCount(O)).main; wp.
 suff P : hoare[ CountAdv(A, A'(Ob, Hyb.OrclCount(O)).O').main :
@@ -453,22 +432,29 @@ suff P : hoare[ CountAdv(A, A'(Ob, Hyb.OrclCount(O)).O').main :
 qed.
 
 lemma CCA_1n &m :
-    `| Pr[ CCA_L(S, A).main() @ &m : res ] - Pr[ CCA_R(S, A).main() @ &m : res ] | <=
-    Nenc%r * `| Pr[ CCA_L(S,B(S, A)).main() @ &m : res ] - Pr[ CCA_R(S,B(S, A)).main() @ &m : res ] |.
+    `| Pr[ CCA_L(S, A).main() @ &m : res ] - 
+       Pr[ CCA_R(S, A).main() @ &m : res ] | 
+<= Nenc%r * `| Pr[ CCA_L(S,B(S, A)).main() @ &m : res ] - 
+               Pr[ CCA_R(S,B(S, A)).main() @ &m : res ] |.
 proof.
 rewrite -ler_pdivr_mull; 1: smt(Nenc_gt0).
-have -> : inv Nenc%r * `|Pr[CCA_L(S, A).main() @ &m : res] - Pr[CCA_R(S, A).main() @ &m : res]| =
-          `| (Pr[ CCA_L(S, A).main() @ &m : res ] - Pr[ CCA_R(S, A).main() @ &m : res]) / Nenc%r |.
+have -> : inv Nenc%r * `|Pr[CCA_L(S, A).main() @ &m : res] - 
+                         Pr[CCA_R(S, A).main() @ &m : res]| =
+          `| (Pr[ CCA_L(S, A).main() @ &m : res ] - 
+              Pr[ CCA_R(S, A).main() @ &m : res]) / Nenc%r |.
 smt(Nenc_gt0).
 rewrite CCA_Ln CCA_Rn.
-have /= H := Hyb.Hybrid_restr_div Ob A' A'_call Obl_ll orclL_ll orclR_ll A'_ll &m (fun _ _ _ r => r).
+have /= H := Hyb.Hybrid_restr_div Ob A' A'_call Obl_ll orclL_ll orclR_ll 
+             A'_ll &m (fun _ _ _ r => r).
 rewrite -H; clear H; 1:smt(Nenc_gt0).
-have <- : Pr[CCA_(S, B(S, A), L).main() @ &m : res] = Pr[Hyb.HybGame(A', Ob, Hyb.L(Ob)).main() @ &m : res].
+have <- : Pr[CCA_(S, B(S, A), L).main() @ &m : res] = 
+          Pr[Hyb.HybGame(A', Ob, Hyb.L(Ob)).main() @ &m : res].
   byequiv => //; proc; inline *; auto.
   swap{2} 1 5; swap{1} 6 2; sp.
   rcondt{2} 1; 1: by move => &m'; skip => />.
   call (: ={glob S} /\ ={pk, sk}(CCA_Oracle, Ob) /\
-            B.i{1} = Hyb.HybOrcl.l{2} /\ B.iS{1} = Hyb.HybOrcl.l0{2} /\ ={cs, pk}(B, Ob) /\
+            B.i{1} = Hyb.HybOrcl.l{2} /\ B.iS{1} = Hyb.HybOrcl.l0{2} /\ 
+            ={cs, pk}(B, Ob) /\
             (forall c, c \in CCA_Oracle.cs{1} => c \in B.cs{1})).
   - proc; auto; inline *; sp; if; 1: by move => />.
     + by auto; call (: true); auto => /> /#.
@@ -476,17 +462,19 @@ have <- : Pr[CCA_(S, B(S, A), L).main() @ &m : res] = Pr[Hyb.HybGame(A', Ob, Hyb
       * by auto; call(: true); auto => /> /#.
       * by auto; call(: true); auto => /> /#.
   - proc; inline *; sp. rcondf{2} 1; 1: by move => &m'; skip => />.
-    sp. if; 1: by move => &m1 &m2 />.
+    sp. if. move => &m1 &m2 />.
     + sp. rcondt{1} 1. move => &m1; skip => /> /#.
       by auto; call(: true); skip => />.
     + by auto; skip => />.
   wp; rnd; auto; call(: true); skip => &m1 &m2 />; smt(supp_dinter Nenc_gt0).
-have <- : Pr[CCA_(S, B(S, A), R).main() @ &m : res] = Pr[Hyb.HybGame(A', Ob, Hyb.R(Ob)).main() @ &m : res].
+have <- : Pr[CCA_(S, B(S, A), R).main() @ &m : res] = 
+          Pr[Hyb.HybGame(A', Ob, Hyb.R(Ob)).main() @ &m : res].
   byequiv => //; proc; inline *; auto.
   swap{2} 1 5; swap{1} 6 2; sp.
   rcondt{2} 1; 1: by move => &m'; skip => />.
   call (: ={glob S} /\ ={pk,sk}(CCA_Oracle,Ob) /\
-            B.i{1} = Hyb.HybOrcl.l{2} /\ B.iS{1} = Hyb.HybOrcl.l0{2} /\ ={cs,pk}(B,Ob) /\
+            B.i{1} = Hyb.HybOrcl.l{2} /\ B.iS{1} = Hyb.HybOrcl.l0{2} /\ 
+            ={cs,pk}(B,Ob) /\
             (forall c, c \in CCA_Oracle.cs{1} => c \in B.cs{1})).
   - proc; auto; inline *; sp; if; 1: by move => />.
     + by auto; call (: true); auto => /> /#.
@@ -502,6 +490,6 @@ have <- : Pr[CCA_(S, B(S, A), R).main() @ &m : res] = Pr[Hyb.HybGame(A', Ob, Hyb
 smt().
 qed.
 
-end section.
+end section PROOF.
 
 end IND_CCA2.

@@ -1,0 +1,38 @@
+require import DBool.
+
+(* Generic "left or right" oracles and default implementations *)
+
+type input.
+
+module type LR = {
+  proc init () : unit
+  proc l_or_r (m0 m1 : input) : input
+}.
+
+module LorR : LR = {
+  var b : bool
+
+  proc init () = {
+    b <$ {0,1};
+  }
+
+  proc l_or_r (m0 m1 : input) = {
+    return b?m0:m1;
+  }
+}.
+
+module L : LR = {
+  proc init () = { }
+
+  proc l_or_r (m0 m1 : input) = {
+    return m0;
+  }
+}.
+
+module R : LR = {
+  proc init () = { }
+
+  proc l_or_r (m0 m1 : input) = {
+    return m1;
+  }
+}.
