@@ -2614,8 +2614,10 @@ rwarg1:
   }
 
 | EQUIV aout=bracket(
-    s=side pos=codepos1 x=qident args=paren(loc(plist0(expr, COMMA))) res=sexpr {
-      RWEquiv (s, pos, x, args, res)
+    s=side pos=codepos1 x=qident
+    argsl=paren(loc(plist0(expr, COMMA))) resl=sexpr
+    argsr=paren(loc(plist0(expr, COMMA))) resr=sexpr {
+      RWEquiv (s, pos, x, (argsl, resl), (argsr, resr))
     }
   ) { aout }
 

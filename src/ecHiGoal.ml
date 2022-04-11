@@ -824,7 +824,7 @@ let process_rewrite1_r ttenv ?target ri tc =
   | RWTactic `Field ->
       process_algebra `Solve `Field [] tc
 
-  | RWEquiv (side, _pos, name, args, res) ->
+  | RWEquiv (side, _pos, name, (argsl, resl), (argsr, resr)) ->
       let tc = match side with
         | `Left  -> tc
         | `Right -> as_tcenv1 (EcPhlSym.t_equiv_sym tc)
@@ -834,19 +834,25 @@ let process_rewrite1_r ttenv ?target ri tc =
       let goal = EcFol.destr_equivS goal in
       let _, lem = EcEnv.Ax.lookup (unloc name) env in
       assert (List.is_empty lem.ax_tparams);
-      let mem = goal.es_ml in
-      let subenv = EcEnv.Memory.push_active mem env in
       let equiv = EcFol.destr_equivF lem.ax_spec in
-      let proc = EcEnv.Fun.by_xpath equiv.ef_fl env in
-      (* FIXME: This seems to leave some types open **)
-      let args, _ =
-        let ue = EcUnify.UniEnv.create (Some []) in
-        EcTyping.trans_args subenv ue (loc args) proc.f_sig (unloc args) in
-      let res =
-        let ue = EcUnify.UniEnv.create (Some []) in
-        EcTyping.transexpcast subenv `InProc ue proc.f_sig.fs_ret res in
 
-      let lv =
+      (* FIXME: add sanity checks!
+         - argsl and argsr need to have the same type
+         - resl and resr need to have the same type *)
+
+      (* FIXME: This seems to leave some types open **)
+      let sided_env m (p : EcModules.function_) args res =
+        let subenv = EcEnv.Memory.push_active m env in
+        let args, _ =
+          let ue = EcUnify.UniEnv.create (Some []) in
+          EcTyping.trans_args subenv ue (loc args) p.f_sig (unloc args) in
+        let res =
+          let ue = EcUnify.UniEnv.create (Some []) in
+          EcTyping.transexpcast subenv `InProc ue p.f_sig.fs_ret res in
+        (args, res)
+      in
+
+      let lv res =
         let as_pvar e =
           match e.e_node with
           | Evar pv -> (pv, e_ty e)
@@ -860,22 +866,36 @@ let process_rewrite1_r ttenv ?target ri tc =
         | _ -> assert false
       in
 
-      let prpo ml mr =
+      let meml = goal.es_ml in
+      let procl = EcEnv.Fun.by_xpath equiv.ef_fl env in
+      let argsl, resl = sided_env meml procl argsl resl in
+      let lvl = lv resl in
+
+      let memr = goal.es_mr in
+      let procr = EcEnv.Fun.by_xpath equiv.ef_fr env in
+      (* TODO: when fiddling with contracts below, we'll use these *)
+      let _argsr, _resr = sided_env memr procr argsr resr in
+      let _lvr = lv _resr in
+
+
+      let prpo ml mr argsl resl argsr resr =
         let pr =
           f_eq
-            (EcFol.form_of_expr ml (e_tuple args))
-            (EcFol.form_of_expr mr (e_tuple args))
+            (EcFol.form_of_expr ml (e_tuple argsl))
+            (EcFol.form_of_expr mr (e_tuple argsr))
         and po =
-          f_eq (EcFol.form_of_expr ml res)  (EcFol.form_of_expr mr res)
+          f_eq (EcFol.form_of_expr ml resl)  (EcFol.form_of_expr mr resr)
         in (pr, po) in
 
-      let progl = EcModules.s_call (Some lv, equiv.ef_fl, args) in
-      let progr = EcModules.s_call (Some lv, equiv.ef_fr, args) in
+      let progl = EcModules.s_call (Some lvl, equiv.ef_fl, argsl) in
+      let progr = EcModules.s_call (Some lvl, equiv.ef_fr, argsl) in
 
       let tc =
         EcPhlTrans.t_equivS_trans
-           (EcMemory.memtype mem, progl)
-           (prpo (EcMemory.memory goal.es_ml) mright)
+           (EcMemory.memtype meml, progl)
+           (prpo (EcMemory.memory meml) mright argsl resl argsl resl)
+           (* TODO: fiddle with second contract; we want the switch in
+              memory to occur over the application of eq *)
            (goal.es_pr, goal.es_po)
            tc in
 
@@ -884,8 +904,9 @@ let process_rewrite1_r ttenv ?target ri tc =
         t_onselect
           p
           (EcPhlTrans.t_equivS_trans
-             (EcMemory.memtype mem, progr)
-             (prpo mleft (EcMemory.memory goal.es_mr))
+             (EcMemory.memtype meml, progr)
+             (prpo mleft (EcMemory.memory memr) argsl resl argsl resl)
+             (* TODO: fiddle with second contract *)
              (goal.es_pr, goal.es_po))
           tc in
 

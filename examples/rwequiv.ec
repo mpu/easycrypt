@@ -48,7 +48,7 @@ require Distr.
 equiv eq2: BiSample.sample ~ Prod.sample: arg{2} = arg{1} /\ P ==> res{2} = res{1} /\ Q.
 proof.
 proc.
-rewrite equiv [{1} 1 eq (dt, du) (t,u)]=> //.
+rewrite equiv [{1} 1 eq (dt, du) (t,u) (dt, du) tu]=> //.
 + move=> &1 &2 H; exists dt{1} du{1}; split.
   + congr; try reflexivity.
   exact: H.
@@ -61,7 +61,7 @@ qed.
 equiv eq3: Prod.sample ~ BiSample.sample: arg{2} = arg{1} /\ P ==> res{2} = res{1} /\ Q.
 proof.
 proc.
-rewrite equiv [{2} 1 eq (dt, du) (t,u)]=> //.
+rewrite equiv [{2} 1 eq (dt, du) (t,u) (dt, du) tu]=> //.
 + move=> &1 &2 H; exists dt{1} du{1}; split.
   + congr; try reflexivity.
   exact: H.
