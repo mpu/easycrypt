@@ -874,8 +874,8 @@ let process_rewrite1_r ttenv ?target ri tc =
       let memr = goal.es_mr in
       let procr = EcEnv.Fun.by_xpath equiv.ef_fr env in
       (* TODO: when fiddling with contracts below, we'll use these *)
-      let _argsr, _resr = sided_env memr procr argsr resr in
-      let _lvr = lv _resr in
+      let argsr, resr = sided_env memr procr argsr resr in
+      let lvr = lv resr in
 
 
       let prpo ml mr argsl resl argsr resr =
@@ -888,14 +888,12 @@ let process_rewrite1_r ttenv ?target ri tc =
         in (pr, po) in
 
       let progl = EcModules.s_call (Some lvl, equiv.ef_fl, argsl) in
-      let progr = EcModules.s_call (Some lvl, equiv.ef_fr, argsl) in
+      let progr = EcModules.s_call (Some lvr, equiv.ef_fr, argsr) in
 
       let tc =
         EcPhlTrans.t_equivS_trans
            (EcMemory.memtype meml, progl)
            (prpo (EcMemory.memory meml) mright argsl resl argsl resl)
-           (* TODO: fiddle with second contract; we want the switch in
-              memory to occur over the application of eq *)
            (goal.es_pr, goal.es_po)
            tc in
 
@@ -904,10 +902,9 @@ let process_rewrite1_r ttenv ?target ri tc =
         t_onselect
           p
           (EcPhlTrans.t_equivS_trans
-             (EcMemory.memtype meml, progr)
-             (prpo mleft (EcMemory.memory memr) argsl resl argsl resl)
-             (* TODO: fiddle with second contract *)
-             (goal.es_pr, goal.es_po))
+             (EcMemory.memtype memr, progr)
+             (goal.es_pr, goal.es_po)
+             (prpo mleft (EcMemory.memory memr) argsr resr argsr resr))
           tc in
 
       let p = process_tfocus tc (Some [Some 6,Some 6], None) in
@@ -923,9 +920,10 @@ let process_rewrite1_r ttenv ?target ri tc =
        * - reflexivity, then if that fails and there is more than one variable,
        *   congr and repeat on all subgoals;
        * - last goal will normally be `exact: H.`
+       * When rewriting right to left, we may need to use the right-memory values instead.
        *)
 
-      let p = process_tfocus tc (Some [Some 3, Some 3], None) in
+      let p = process_tfocus tc (Some [Some 3, Some 3; Some 7, Some 7], None) in
       let tc =
         t_onselect
           p
