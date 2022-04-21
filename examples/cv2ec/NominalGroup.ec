@@ -44,7 +44,7 @@ axiom mulC       : commutative ( * ).
 
 axiom powM       : forall a x y, a ^ (x * y) = (a ^ x) ^ y.
 axiom pow_inv    : forall x, x \in EU => g ^ (x * inv x) = g.
-axiom pow_inv_f  : forall a, a ^ (f * inv f) = a.
+axiom pow_inv_f  : forall a x, a ^ (f * inv f * x) = a ^ x.
 
 axiom exp_inj    : injective_on EU (exp g).
 axiom exp_inj'   : forall x, injective_on EU (fun z => exp g (x * z)).

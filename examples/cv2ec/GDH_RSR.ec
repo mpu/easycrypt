@@ -314,26 +314,27 @@ module G1 : GDH_RSR_Oracles  = {
     return r;
   }
 
-  proc elem (i : int) : Z = {
-    var mi, pi, r;
+  proc elexp (Y : G, i : int) : G = {
+    var a, mi, pi, r;
 
     mi <- - (i + 1);
     pi <- i - 1;
-    r  <- e;
-    if (i = 0)        r <- f;
+    a  <- e;
+    r  <- Y;
     (* 1 <= i < na + 1 *)
-    if (0 <= pi < na) r <@ OAZ.get(pi);
+    if (0 <= pi < na) a <@ OAZ.get(pi);
     (* 1 <= - i < nb + 1 *)
-    if (0 <= mi < nb) r <@ OBZ.get(mi);
+    if (0 <= mi < nb) a <@ OBZ.get(mi);
+    if (! (i = 0))    r <- exp Y a;
     return r;
   }
 
   proc ddhgen (i, i', Y, Z) = {
     var a, a';
 
-    a  <@ elem(i);
-    a' <@ elem(i');
-    return (exp Z a = exp Y a');
+    a  <@ elexp(Z, i );
+    a' <@ elexp(Y, i');
+    return (a = a');
   }
 }.
 
@@ -546,26 +547,27 @@ module G (OA : FROZ.RO, OB : FROZ.RO) : GDH_RSR_Oracles = {
     return r;
   }
 
-  proc elem (i : int) : Z = {
-    var mi, pi, r;
+  proc elexp (Y : G, i : int) : G = {
+    var a, mi, pi, r;
 
     mi <- - (i + 1);
     pi <- i - 1;
-    r  <- e;
-    if (i = 0)        r <- f;
+    a  <- e;
+    r  <- Y;
     (* 1 <= i < na + 1 *)
-    if (0 <= pi < na) r <@ OA.get(pi);
+    if (0 <= pi < na) a <@ OA.get(pi);
     (* 1 <= - i < nb + 1 *)
-    if (0 <= mi < nb) r <@ OB.get(mi);
+    if (0 <= mi < nb) a <@ OB.get(mi);
+    if (! (i = 0))    r <- exp Y a;
     return r;
   }
 
-  proc ddhgen (i i', Y, Z) = {
+  proc ddhgen (i, i', Y, Z) = {
     var a, a';
 
-    a  <@ elem(i);
-    a' <@ elem(i');
-    return (exp Z a = exp Y a');
+    a  <@ elexp(Z, i );
+    a' <@ elexp(Y, i');
+    return (a = a');
   }
 }.
 
@@ -1050,8 +1052,8 @@ split.
 - have -> : Pr[Game(G(OAZ,  OBZ), A).main() @ &m : G.bad] =
             Pr[D1.R1.MainD(DisA, D1.R1.RO).distinguish() @ &m : res].
   + byequiv => //; proc; inline *; auto.
-    call (: ={m}(OAZ, D1.R1.RO) /\ ={OBZ.m, G2.ca, G2.cb, G.bad}); 1..8: by sim.
-    by auto.
+    call (: ={m}(OAZ, D1.R1.RO) /\ ={OBZ.m, G2.ca, G2.cb, G.bad});
+      1..8: (by sim); by auto.
   have -> : Pr[Game(G(OAEU, OBZ), A).main() @ &m : G.bad] =
             Pr[D1.R1.MainD(DisA, D1.R2.RO).distinguish() @ &m : res].
   + byequiv => //; proc; inline *; auto.
@@ -1115,11 +1117,11 @@ split.
   + proc; inline *; sp; if; 2: (by auto); wp.
     call (: true); auto; call (: true); auto.
     smt(in_fsetU in_fset1 mem_rangeset).
-  + proc; inline *; seq 13 : (D2.Wrap.dom \subset rangeset 0 nb).
-    * seq 11 : (D2.Wrap.dom \subset rangeset 0 nb); sp; if; auto;
-      [ | | call (: true); auto]; smt(in_fsetU in_fset1 mem_rangeset).
-    * seq 6 : (D2.Wrap.dom \subset rangeset 0 nb); sp; if; auto;
-      [ | | call (: true); auto]; smt(in_fsetU in_fset1 mem_rangeset).
+  + proc; inline *; seq 15 : (D2.Wrap.dom \subset rangeset 0 nb).
+    * seq 12 : (D2.Wrap.dom \subset rangeset 0 nb); sp; if; auto.
+      by call (: true); auto; smt(in_fsetU in_fset1 mem_rangeset).
+    * seq 7 : (D2.Wrap.dom \subset rangeset 0 nb); sp; if; auto.
+      by call (: true); auto; smt(in_fsetU in_fset1 mem_rangeset).
   + by inline *; auto; smt(in_fset0).
 qed.
 
@@ -1328,7 +1330,7 @@ seq 16 : G.bad p ((1%r - pa) ^ (q_oa + (min 1 q_ddhma)) * pa *
   + by move => *; proc; inline *; sp; if; [if | ]; auto; smt(dEU_ll).
   + by proc; inline *; sp; if; [ | if{2} | ]; auto; smt().
   + by move => *; proc; inline *; sp; if; [if | ]; auto; smt(dEU_ll).
-  + by proc; inline *; sp; if; auto; smt().
+  + by proc; inline *; sp; if; auto => />; smt().
   + by move => *; proc; inline *; sp; if; auto; smt(dEU_ll).
   + by move => *; proc; inline *; sp; if; auto; smt(dEU_ll).
   + proc; inline G(OAEU, OBEU).ddhma Gs(OAEU, OBEU).ddhma.
@@ -1609,6 +1611,7 @@ call (: ={OAEU.m, OBEU.m, G2.ca, G2.cb, glob G, glob Gs} /\
             ={m0, i'0, i0, j0, r0, a', a, b} /\ a'{1} \in EU /\ a{1} \in EU);
     1: by inline *; auto => /> ; smt(get_setE supp_duniform).
   inline *; auto => /> &2 _ _ a'EU aEU.
+  suff: forall a0, exp (exp g b{2} ^ f) a0 = exp g (a0 * b{2});
   by smt(expM exp_inj mulA mulC powM pow_inv_f).
 - proc; inline Gs(OAEU, OBEU).ddhmb G''(OAEU, OBEU).ddhmb.
   sp; wp; if; 1, 3: by auto.
@@ -1622,36 +1625,58 @@ call (: ={OAEU.m, OBEU.m, G2.ca, G2.cb, glob G, glob Gs} /\
             ={m0, j'0, i0, j0, r0, b', a, b} /\ b'{1} \in EU /\ a{1} \in EU);
     1: by inline *; auto => /> ; smt(N.dZ_ll get_setE supp_duniform).
   inline *; auto => /> &2 _ _ b'EU aEU.
+  suff: forall a0, exp (exp g b{2} ^ f) a0 = exp g (a0 * b{2});
   by smt(expM exp_inj mulA mulC powM pow_inv_f).
 - proc; inline Gs(OAEU, OBEU).ddhgen G''(OAEU, OBEU).ddhgen.
-  seq 7 7: (={OAEU.m, OBEU.m, G2.ca, G2.cb, glob G, glob Gs, Y0, Z0} /\
-            (forall r, r \in OAEU.m => oget (OAEU.m.[r]) \in EU){2} /\
-            (forall r, r \in OBEU.m => oget (OBEU.m.[r]) \in EU){2} /\
-            (is_none a{2} => (a{1} = f)) /\
-            (is_some a{2} => oget a{2} = exp g a{1} /\ a{1} \in EU) /\
-            (is_none a'{2} => (a'{1} = f)) /\
-            (is_some a'{2} => oget a'{2} = exp g a'{1} /\ a'{1} \in EU));
-    2: by inline *; auto; smt(exp_inj pow_inv_f).
-  swap 6 -3; inline G(OAEU, OBEU).elem G''(OAEU, OBEU).pubelem.
-  seq 9 9: (={OAEU.m, OBEU.m, G2.ca, G2.cb, glob G, glob Gs, i', Y, Z} /\
-            (forall r, r \in OAEU.m => oget (OAEU.m.[r]) \in EU){2} /\
-            (forall r, r \in OBEU.m => oget (OBEU.m.[r]) \in EU){2} /\
-            (is_none p{2} => (r0{1} = f)) /\
-            (is_some p{2} => oget p{2} = r0{1} /\ r0{1} \in EU)).
-  + sp 6 6; if; [smt() | rcondf{1} 2; auto; rcondf{1} 2; auto;
-                         rcondf{2} 2; auto; rcondf{2} 2; auto | ].
-    if; [smt() | rcondf{1} 2; 1: (by auto; call (: true); auto; smt());
-                 rcondf{2} 3; 1: (by auto; call (: true); auto; smt());
-                 by inline *; auto => /> ; smt(get_setE supp_duniform) | ].
-    if; 1, 3: by auto; smt(e_EU).
-    by inline *; auto => /> ; smt(get_setE supp_duniform).
-  + sp 8 8; if; [smt() | rcondf{1} 2; auto; rcondf{1} 2; auto;
-                         rcondf{2} 2; auto; rcondf{2} 2; auto; smt() | ].
-    if; [smt() | rcondf{1} 2; 1: (by auto; call (: true); auto; smt());
-                 rcondf{2} 3; 1: (by auto; call (: true); auto; smt());
-                 by inline *; auto => /> ; smt(get_setE supp_duniform) | ].
-    if; 1, 3: by auto => /> ; smt(e_EU).
-    by inline *; auto => /> ; smt(get_setE supp_duniform).
+  seq 7 7 : (={OAEU.m, OBEU.m, G2.ca, G2.cb, glob G, glob Gs, Y0, Z0} /\
+             (forall r, r \in OAEU.m => oget (OAEU.m.[r]) \in EU){2} /\
+             (forall r, r \in OBEU.m => oget (OBEU.m.[r]) \in EU){2} /\
+             (is_none a{2} => (a = Z0){1}) /\
+             (is_some a{2} =>
+              exists z,
+                z \in EU /\ oget a{2}  = exp g z /\ a{1}  = exp Z0{1} z) /\
+             (is_none a'{2} => (a' = Y0){1}) /\
+             (is_some a'{2} =>
+              exists z,
+                z \in EU /\ oget a'{2} = exp g z /\ a'{1} = exp Y0{1} z)).
+  + seq 6 6 : (={OAEU.m, OBEU.m, G2.ca, G2.cb, glob G, glob Gs, i'0, Y0, Z0} /\
+               (forall r, r \in OAEU.m => oget (OAEU.m.[r]) \in EU){2} /\
+               (forall r, r \in OBEU.m => oget (OBEU.m.[r]) \in EU){2} /\
+               (is_none a{2} => (a = Z0){1}) /\
+               (is_some a{2} =>
+                exists z,
+                  z \in EU /\ oget a{2}  = exp g z /\ a{1}  = exp Z0{1} z)).
+    * inline G(OAEU, OBEU).elexp G''(OAEU, OBEU).pubelem.
+      sp 11 9; if{2}; [rcondf{1} 1; 1: (by auto);
+                       rcondf{1} 1; 1: (by auto);
+                       rcondf{1} 1; 1: (by auto);
+                       rcondf{2} 2; 1: (by auto);
+                       rcondf{2} 2; auto | ].
+      rcondt{1} 3; 1: by auto; if; [rcondf 2 | if]; inline *; auto => /#.
+      if; 1: by move => /> /#.
+      - rcondf{1} 2; 1: by auto; call (: true); auto => /#.
+        rcondf{2} 3; 1: by auto; call (: true); auto => /#.
+        by inline *; auto => />; smt(get_setE supp_duniform).
+      - if; 1, 3: by auto; smt(e_EU).
+        by inline *; auto => />; smt(get_setE supp_duniform).
+    * inline G(OAEU, OBEU).elexp G''(OAEU, OBEU).pubelem.
+      sp 6 4; if{2}; [rcondf{1} 1; 1: (by auto);
+                      rcondf{1} 1; 1: (by auto);
+                      rcondf{1} 1; 1: (by auto);
+                      rcondf{2} 2; 1: (by auto);
+                      rcondf{2} 2; auto | ].
+      rcondt{1} 3; 1: by auto; if; [rcondf 2 | if]; inline *; auto => /#.
+      if; 1: by move => /> /#.
+      - rcondf{1} 2; 1: by auto; call (: true); auto => /#.
+        rcondf{2} 3; 1: by auto; call (: true); auto => /#.
+        by inline *; auto => />; smt(get_setE supp_duniform).
+      - if; 1, 3: by auto => />; smt(e_EU).
+        by inline *; auto => />; smt(get_setE supp_duniform).
+  + inline *; auto => /> *.
+    split => *; 1: smt(exp_inj).
+    split => *; 1: smt(exp_inj).
+    split => *; 1: smt(exp_inj).
+    by split => *; smt(exp_inj).
 - by auto; smt(mem_empty).
 qed.
 
@@ -2052,7 +2077,8 @@ call (: ={glob Ok, O0EU.m} /\ Ok.x{1} \in EU /\
                    r{1} = exp g (Ok.x{2} * r{2}) /\
                    ={glob Ok, O0EU.m, x} /\ Ok.x{1} \in EU /\
                    O1G.m{1} = map (fun _ z => exp g (Ok.x{2} * z)) O1EU.m{2});
-  [smt() | done | by auto => /> &2 *; rewrite (exp_exp_x Ok.x{2}); smt() | ].
+  [ | done | by auto => /> &2 *; rewrite (exp_exp_x Ok.x{2}); smt() | ];
+    1: by move => /> /#.
   rnd (elogr Ok.x{2}) (fun z => exp g (Ok.x{2} * z)); auto => /> *.
   split => [|_]; 1: smt(exprK supp_dmap supp_duniform).
   split => [*|_ r /supp_dmap [rx [/supp_duniform ? -> /=]]];
@@ -3372,7 +3398,7 @@ call (: ! nstop Gs.ia Gs.ib G2.ca G2.cb \/
     have: g ^ (y * b{2} * f * (ga * (inv a{2} * inv b{2}) * inv f) * inv f) =
           g ^ (b{2} * inv b{2}) ^ (ga * inv a{2} * y * inv f) ^ (f * inv f)
       by smt(mulA mulC powM).
-    by rewrite pow_inv_f pow_inv.
+    by move => ->; rewrite pow_inv // -powM mulC pow_inv_f.
   + suff: exp g ga = exp g (x * a{2}); 2: by smt(expM exp_inj).
     by rewrite !expM => ->; rewrite -!expM; smt(exp_inv mulA mulC).
 - move => &2 *; proc; inline S.ddhm.
@@ -3391,7 +3417,8 @@ call (: ! nstop Gs.ia Gs.ib G2.ca G2.cb \/
              (Gx.x = x /\ Gx.y = y){2} /\ S.set{1} = G.bad{2} /\
              (forall i, i \in OAEU.m => oget (OAEU.m.[i]) \in EU){2} /\
              (forall j, j \in OBEU.m => oget (OBEU.m.[j]) \in EU){2});
-    1: by inline *; auto => />; smt(get_setE get_set_sameE memE supp_duniform).
+    1: by inline *; auto => /> *; split;
+          smt(get_setE get_set_sameE memE supp_duniform).
   inline *; auto => /> &1 &2.
   move: (i0{2}) (j0{2}) (G2.ca{2}) (G2.cb{2}) => i j ca cb *.
   (case: (i \in ca) => [i_ca | iNca]); (case: (j \in cb) => [j_cb | jNcb] /=);
@@ -3410,7 +3437,7 @@ call (: ! nstop Gs.ia Gs.ib G2.ca G2.cb \/
     have -> : exp g ga = exp g (a{2} * x) by smt(mulC).
     have: exp (exp g (a{2} * x)) (b{2} * y) ^ f =
           exp g (a{2} * x * (b{2} * y)) ^ (f * inv f) by smt(expM mulA mulC).
-    by smt(pow_inv_f).
+    by move => ->; rewrite -powM mulC pow_inv_f.
 - move => &2 *; proc; inline S.ddhma.
   by sp; if; auto; inline *; auto; smt(dEU_ll).
 - move => &1 *; proc; inline Gxy(OAEU, OBEU).ddhma.
@@ -3447,7 +3474,7 @@ call (: ! nstop Gs.ia Gs.ib G2.ca G2.cb \/
     have -> : exp g ga = exp g (a{2} * x) by smt(mulC).
     have: exp (exp g (a{2} * x)) (b{2} * y) ^ f =
           exp g (a{2} * x * (b{2} * y)) ^ (f * inv f) by smt(expM mulA mulC).
-    by smt(pow_inv_f).
+    by move => ->; rewrite -powM mulC pow_inv_f.
 - move => &2 *; proc; inline S.ddhmb.
   by sp; if; auto; inline *; auto; smt(dEU_ll).
 - move => &1 *; proc; inline Gxy(OAEU, OBEU).ddhmb.
@@ -3470,13 +3497,13 @@ call (: ! nstop Gs.ia Gs.ib G2.ca G2.cb \/
              (forall i, i \in OAEU.m => oget (OAEU.m.[i]) \in EU){2} /\
              (forall j, j \in OBEU.m => oget (OBEU.m.[j]) \in EU){2} /\
              ={i'0, Y0, Z0, a}); inline *.
-  + sp 9 9; if; [smt() | rcondf{1} 2; auto; rcondf{1} 2; auto;
-                         rcondf{2} 2; auto; rcondf{2} 2; auto; smt() | ].
+  + sp 9 9; if; [move => /> /# | rcondf{1} 2; auto; rcondf{1} 2; auto;
+                                 rcondf{2} 2; auto; rcondf{2} 2; auto; smt() |].
     if; [smt() | | if; auto => /> ; smt(expM get_setE supp_duniform)].
     rcondf{1} 7; 1: by auto; smt().
     by rcondf{2} 7; auto => /> ; smt(expM get_setE supp_duniform).
-  + sp 4 4; if; [smt() | rcondf{1} 2; auto; rcondf{1} 2; auto;
-                         rcondf{2} 2; auto; rcondf{2} 2; auto; smt() | ].
+  + sp 4 4; if; [move => /> /# | rcondf{1} 2; auto; rcondf{1} 2; auto;
+                                 rcondf{2} 2; auto; rcondf{2} 2; auto; smt() |].
     if; [smt() | | if; auto => /> ; smt(expM get_setE supp_duniform)].
     rcondf{1} 7; 1: by auto; smt().
     by rcondf{2} 7; auto => /> ; smt(expM get_setE supp_duniform).

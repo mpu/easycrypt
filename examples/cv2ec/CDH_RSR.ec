@@ -932,7 +932,7 @@ call (: G.bad /\ Gk.k <> Gk_bad.k_bad,
         (G.bad <=> Gk.k = Gk_bad.k_bad){2});
   try by (sim /> || (move => *; conseq />; islossless)).
 - by exact A_ll.
-- by proc; inline *; sp; if; auto => /#.
+- by proc; inline *; sp; if; auto => /> /#.
 - move => {&m} &m; proc; inline *; sp; if; auto; smt(dEU_ll).
 - by auto; smt(supp_dinter).
 qed.
@@ -996,7 +996,7 @@ seq 14 : G.bad p (1%r / q_ddh%r * c) _ 0%r
   + by move => *; proc; inline *; sp; if; [if | ]; auto; smt(dEU_ll).
   + by proc; inline *; sp; if; [ | if{2} | ]; auto; smt().
   + by move => *; proc; inline *; sp; if; [if | ]; auto; smt(dEU_ll).
-  + by proc; inline *; sp; if; auto; smt().
+  + by proc; inline *; sp; if; auto => />; smt().
   + by move => *; proc; inline *; sp; if; auto; smt(dEU_ll).
   + by move => *; proc; inline *; sp; if; auto; smt(dEU_ll).
   + by auto; smt().
@@ -1471,7 +1471,8 @@ call (: ={glob Ok, O0EU.m} /\ Ok.x{1} \in EU /\
                    r{1} = exp g (Ok.x{2} * r{2}) /\
                    ={glob Ok, O0EU.m, x} /\ Ok.x{1} \in EU /\
                    O1G.m{1} = map (fun _ z => exp g (Ok.x{2} * z)) O1EU.m{2});
-  [smt() | done | by auto => /> &2 *; rewrite (exp_exp_x Ok.x{2}); smt() | ].
+  [ | done | by auto => /> &2 *; rewrite (exp_exp_x Ok.x{2}); smt() | ];
+    1: by move => /> /#.
   rnd (elogr Ok.x{2}) (fun z => exp g (Ok.x{2} * z)); auto => /> *.
   split => [|_]; 1: smt(exprK supp_dmap supp_duniform).
   split => [*|_ r /supp_dmap [rx [/supp_duniform ? -> /=]]];
@@ -1831,7 +1832,7 @@ call (: ={OBEU.m, G2.cb, G.bad} /\ ={m}(OEU, OAEU) /\
              i1{1} = i0{2} /\ j1{1} = j0{2} /\ r1{1} = r0{2} /\
              ca{1} = G2.ca{2} /\ 0 <= i1{1} < na); 2: by inline *; auto => />.
   wp; call (: ={OBEU.m}); auto.
-  by inline *; sp; rcondt{1} 1; auto; smt(expM).
+  by inline *; sp; rcondt{1} 1; auto => />; smt(expM).
 qed.
 
 local module GkxD (OA : FROEU.RO, OB : O) = {
