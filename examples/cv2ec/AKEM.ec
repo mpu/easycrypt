@@ -473,7 +473,7 @@ call (: ={glob Oreal} /\ ={m}(B.OB,Oideal) /\ ={ctr}(B.OB,OG) /\
   + rcondt{2} 4; first by auto => /> /#.
     by inline*; auto; smt(mem_set).
   rcondt{2} 4; first by auto => /> /#.
-  by inline*; auto; smt(mem_set).
+  by inline*; auto => /> ; smt(mem_set).
 - swap{1} 11 -10; wp; rnd; rnd; wp. 
   rnd (fun n => n - 1) (fun n => n + 1). 
   auto => />; smt(supp_dinter dinter1E).
