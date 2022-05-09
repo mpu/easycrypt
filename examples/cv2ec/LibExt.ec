@@ -19,14 +19,15 @@ op right ['a 'b] (s : ('a,'b) sum) =
   with s = Left _ => witness.
 
 lemma ifT (b : bool) (e1 e2 : 'a) : b => (if b then e1 else e2) = e1. 
-proof. smt(). qed.
+proof. by case: b. qed.
 
 lemma ifF (b : bool) (e1 e2 : 'a) : !b => (if b then e1 else e2) = e2. 
-proof. smt(). qed.
+proof. by case: b. qed. 
 
+(* really useful *)
 lemma omap_some (ox : 'a option) (y : 'b) (f : 'a -> 'b) : 
   omap f ox = Some y => exists x, ox = Some x /\ f x = y. 
-proof. by case: ox => /#. qed.
+proof. by case: ox => //= x <-; exists x. qed.
 
 (* List.ec *)
 
@@ -52,6 +53,16 @@ lemma uniq_mem_rem (y x : 'a) (s : 'a list) :
 proof. by elim: s => //= /#. qed.
 
 (* FSet.ec *)
+abbrev (\notin) (z : 'a) (s : 'a fset) = !mem s z.
+
+lemma fcardI1 (A : 'a fset) x : card (A `&` fset1 x) = b2i (x \in A).
+proof. 
+by rewrite (@fcardD1 _ x) fsetDIl fsetDv fsetI0 fcards0 in_fsetI1 /#.
+qed.
+
+lemma fcardU1 (A : 'a fset) x : 
+  card (A `|` fset1 x) = b2i (x \notin A) + card A.
+proof. by rewrite fcardU fcard1 fcardI1 /#. qed.
 
 lemma fcard_oflist (s : 'a list) : card (oflist s) <= size s.
 proof. by rewrite /card -(perm_eq_size _ _ (oflistK s)) size_undup. qed.
@@ -61,7 +72,6 @@ proof. by rewrite /card => /oflist_uniq/perm_eq_size => <-. qed.
 
 lemma card_iota (n : int) : 0 <= n => card (oflist (iota_ 1 n)) = n.
 proof. by move=> n_ge0; rewrite uniq_card_oflist ?iota_uniq size_iota /#. qed.
-
 
 op rangeset (m n : int) = oflist (range m n).
 
@@ -132,7 +142,8 @@ by case(z = x) => // ->; rewrite filterE /#.
 qed.
 
 lemma eq_in_filter ['a 'b] (p1 p2 : 'a -> 'b -> bool) (m : ('a,'b) fmap) :
-  (forall (x : 'a) y , m.[x] = Some y => p1 x y <=> p2 x y) => filter p1 m = filter p2 m.
+  (forall (x : 'a) y , m.[x] = Some y => p1 x y <=> p2 x y) => 
+  filter p1 m = filter p2 m.
 proof. 
 move=> eq_p; apply/fmap_eqP => x; rewrite !filterE /#.
 qed.
@@ -170,6 +181,30 @@ proof. smt(filterE). qed.
 lemma filter_empty (p:'a -> 'b -> bool) : filter p empty = empty.
 proof. by apply/fmap_eqP => x; rewrite filterE emptyE. qed.
 
+(* fsize *)
+
+op fsize (m : ('a,'b) fmap) : int = FSet.card (fdom m).
+
+lemma fsize_empty ['a 'b] : fsize<:'a,'b> empty = 0. 
+proof. by rewrite /fsize fdom0 fcards0. qed.
+
+lemma fsize_set (m : ('a, 'b) fmap) k v : 
+  fsize m.[k <- v] = b2i (k \notin m) + fsize m.
+proof. by rewrite /fsize fdom_set fcardU1 mem_fdom. qed.
+
+lemma mu_le_fsize (m : ('a, 'b) fmap) (d : 'c distr) p bd :
+  (forall u, u \in m => mu d (p u) <= bd) =>
+  mu d (fun r => exists u, u \in m /\ p u r) <= (fsize m)%r * bd.
+proof.
+elim/fmapW : m; first by rewrite mu0_false; smt(mem_empty fsize_empty). 
+move => m k v fresh_k IH H. 
+rewrite (@mu_eq _ _ (predU (p k) 
+  (fun (r : 'c) => exists (u : 'a), (u \in m) /\ p u r))); 1: smt(mem_set).
+rewrite mu_or; apply StdOrder.RealOrder.ler_naddr; 1: smt(mu_bounded). 
+have -> : (fsize m.[k <- v])%r * bd = bd + (fsize m)%r * bd.
+  smt(fsize_set mem_fdom).
+smt(mem_set).
+qed.
 
 (* f-collisions (i.e. collisions under some function f) *)
 op fcoll (f : 'b -> 'c) (m : ('a,'b) fmap)  =
