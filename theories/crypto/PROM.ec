@@ -246,8 +246,18 @@ end section ConditionalLL.
 end section LL.
 
 
-module type BD_Distinguisher(G : RO) = {
-  proc distinguish(_ : d_in_t): d_out_t { G.get, G.sample }
+module type RM_Distinguisher(G : ROmap) = {
+  proc distinguish(_ : d_in_t): d_out_t { G.get, G.sample, G.restrK }
+}.
+
+module MainRM (D : RM_Distinguisher) (RO : ROmap) = {
+  proc distinguish(x) = {
+    var r;
+
+    RO.init();
+    r <@ D(RO).distinguish(x);
+    return r;
+  }
 }.
 
 require import StdBigop LibExt FelTactic.
@@ -262,10 +272,10 @@ declare axiom fcollP :
   forall x1 x2 y, y \in dmap (dout x1) f => mu1 (dmap (dout x2) f) y <= Pc.
 declare op q : { int | 0 <= q } as q_ge0.
 
-declare module D <: BD_Distinguisher{-RO}.
+declare module D <: RM_Distinguisher{-RO}.
 
 lemma fcoll_bound &m z : 
-  Pr [ MainD(D,RO).distinguish(z) @ &m : 
+  Pr [ MainRM(D,RO).distinguish(z) @ &m : 
     fcoll f RO.m /\ fsize RO.m <= q] <= (q*(q-1))%r / 2%r * Pc.
 proof.
 fel 1 (fsize RO.m) (fun x => x%r * Pc) q (fcoll f RO.m) 

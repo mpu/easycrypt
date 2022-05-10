@@ -4,6 +4,7 @@ require (****) StdBigop PROM Means.
 require import LibExt. 
 
 import StdBigop.Bigreal.BRA.
+import StdOrder.RealOrder.
 
 (**********************************************)
 (* Authenticated Key Encapsulation Mechanisms *)
@@ -31,8 +32,14 @@ axiom encapK (ks1 ks2 : keyseed) (es : encseed) :
 
 
 op [lossless] dkey : key distr.
-op pk_coll n = mu (dlist dkeyseed n) 
-                  (fun ks => !uniq (map pkgen ks)).
+
+(* Bound on the probability of a public key collision *)
+op PK : real.
+axiom PK_coll : 
+  forall pk, mu1 (dmap dkeyseed pkgen) pk <= PK.
+
+lemma PK_ge0 : 0%r <= PK.
+proof. smt(PK_coll mu_bounded). qed.
 
 (********************************************)
 (** * 2-participant version of Outsider-CCA *)
@@ -652,7 +659,7 @@ unlike in the paper, participants (i.e., their associated keyseed) are
 generated "on-demand" whenever the adversary calls an oracle with the
 index of a given participant. This matches the behavior of the CV
 code. *)
-module Oreal : Oracle_i = { 
+module Oreal(KS : K.RO) : Oracle_i = { 
   proc init() : unit = { 
     KS.init();
   }
@@ -695,8 +702,8 @@ module Oreal : Oracle_i = {
 
 (* The "ideal" game: we radmomize the shared key if the revceiver
 public key belongs to a participant of the game. *)
-module Oideal : Oracle_i = { 
-  include Oreal [pkey]
+module Oideal(KS : K.ROmap) : Oracle_i = { 
+  include Oreal(KS) [pkey]
   var m : (pkey * pkey * ciphertext, key) fmap
   
   proc init() = {
@@ -877,7 +884,7 @@ module (Bbad (A : Adversary) : O2.Adversary) (O2 : O2.Oracle) = {
 
 section PROOF.
 
-declare module A <: Adversary{-Oreal,-Oideal,-Count,-B,
+declare module A <: Adversary{-Oreal,-Oideal,-KS,-Count,-B,
                               -O2.C.Count, -O2.Oreal, -O2.Oideal,-O2.B, -O2.CB.Count}.
 
 declare axiom A_ll : forall (O <: Oracle{-A}),
@@ -938,8 +945,8 @@ local clone Means as M0 with
 proof *.
 
 local module OG : Oracle = {
-  include Oreal [init,pkey]
-  include var Oideal[decap]
+  include Oreal(KS) [init,pkey]
+  include var Oideal(KS)[decap]
   var u,v : int
 
   proc encap (i : int,  pk : pkey) : ciphertext * key = { 
@@ -969,7 +976,7 @@ local module G : M1.Worker = {
   proc work(u:int,v:int) = {
     var r;
 
-    Oideal.init();
+    Oideal(KS).init();
     OG.u <- u;
     OG.v <- v;
     r <@ A(OG).guess();
@@ -979,20 +986,20 @@ local module G : M1.Worker = {
 
 (* Claim 1 *)
 local lemma Oreal_Gnn &m : 
-  Pr[ Game(Oreal ,A).main() @ &m : res /\ !bad_k KS.m ] = 
+  Pr[ Game(Oreal(KS) ,A).main() @ &m : res /\ !bad_k KS.m ] = 
   Pr[ G.work(n,n) @ &m : res /\ !bad_k KS.m ].
 proof.
 byequiv => //; proc; inline*.
 call(: OG.u{2} = n /\ OG.v{2} = n /\ ={KS.m} /\ (Oideal.m = empty){2} /\
        forall i, i \in KS.m{2} => 1 <= i <= n ).
-- proc; inline Oreal.encap; sp; if; 1,3: by auto. 
+- proc; inline Oreal(KS).encap; sp; if; 1,3: by auto. 
   seq 4 5 : (={pk,i,ks,es,c,k} /\ ={KS.m} /\ (Oideal.m = empty){2} /\
              OG.u{2} = n /\ OG.v{2} = n /\ (i \in KS.m){2} /\ (m_ks = KS.m){2} /\ 
              (forall i, i \in KS.m => 1 <= i <= n){2}).
     inline*; auto => />; smt(mem_set).
   rcondf{2} 2; last by auto.
   auto => &2 /> ? ks_bound; rewrite negb_and -implybE => /find_not_none /> j ks -> /#.
-- proc; inline Oreal.decap; sp; if; 1,3: by auto.
+- proc; inline Oreal(KS).decap; sp; if; 1,3: by auto.
   by inline KS.get; auto => />; smt(mem_set mem_empty).
 - proc; inline*; sp; if; 1,3: by auto. auto => />; smt(mem_set).
 auto => />; smt(mem_empty).
@@ -1000,20 +1007,20 @@ qed.
 
 (* Claim 2 *)
 local lemma Oideal_G10 &m : 
-   Pr[ Game(Oideal ,A).main() @ &m : res /\ !bad_k KS.m ] = 
+   Pr[ Game(Oideal(KS) ,A).main() @ &m : res /\ !bad_k KS.m ] = 
    Pr[ G.work(1,0) @ &m : res /\ !bad_k KS.m ].
 proof.
 byequiv => //; proc; inline*.
 call(: OG.u{2} = 1 /\ OG.v{2} = 0 /\ ={KS.m, Oideal.m} /\ 
        forall i, i \in KS.m{2} => 1 <= i <= n ).
-- proc; inline Oideal.encap; sp; if; 1,3: by auto. 
+- proc; inline Oideal(KS).encap; sp; if; 1,3: by auto. 
   seq 5 5 : (={pk,i,ks,es,c,k,m_ks} /\ ={KS.m, Oideal.m} /\
              OG.u{2} = 1 /\ OG.v{2} = 0 /\ (m_ks = KS.m){2} /\ (i \in KS.m){2} /\ 
              (forall i, i \in KS.m => 1 <= i <= n){2}).
   + by inline*; auto => />; smt(mem_set).
   sp; if; 2,3: by auto. 
   by move => &1 &2 /> ? ks_bound /find_not_none /> j ks -> /#.
-- proc; inline Oideal.decap; sp; if; 1,3: by auto.
+- proc; inline Oideal(KS).decap; sp; if; 1,3: by auto.
   by inline KS.get; auto => />; smt(mem_set).
 - proc; inline*; sp; if; 1,3: by auto. auto => />; smt(mem_set).
 auto => />; smt(mem_empty).
@@ -1674,8 +1681,8 @@ qed.
 
 (* Putting everything together *)
 lemma lemma3 &m : 
-  `| Pr[ Game(Oreal ,A).main() @ &m : res /\ !bad_k KS.m] - 
-     Pr[ Game(Oideal,A).main() @ &m : res /\ !bad_k KS.m] |
+  `| Pr[ Game(Oreal(KS) ,A).main() @ &m : res /\ !bad_k KS.m] - 
+     Pr[ Game(Oideal(KS),A).main() @ &m : res /\ !bad_k KS.m] |
 =  (n^2)%r * `| Pr[ O2.Game(O2.Oreal ,B(A)).main() @ &m : res /\ !bad_k' B.O.mpk] - 
                 Pr[ O2.Game(O2.Oideal,B(A)).main() @ &m : res /\ !bad_k' B.O.mpk]|.
 proof.
@@ -1801,16 +1808,120 @@ islossless; first by apply (A_ll (<: B(A,O).O)); islossless.
 smt(weight_dprod weight_dinter n_gt0).
 qed.
 
+(* bound the probability of public key collisions *)
+
+local module BDi (A' : Adversary) (KS : K.ROmap) = { 
+  proc distinguish () = { 
+    var r;
+    
+    Oideal.m <- empty;
+    C.Count(Oideal(KS)).init(); 
+    r <@ A'(C.Count(Oideal(KS))).guess();
+    return r; } 
+}.
+
+local module BDr (A' : Adversary) (KS : K.ROmap) = { 
+  proc distinguish () = { 
+    var r;
+    
+    Oideal.m <- empty;
+    C.Count(Oreal(KS)).init(); 
+    r <@ A'(C.Count(Oreal(KS))).guess();
+    return r; } 
+}.
+
+
+local lemma get_range : hoare [ KS.get : 1 <= arg <= n /\ 
+  fdom RO.m \subset rangeset 1 (n+1) ==> fdom RO.m \subset rangeset 1 (n+1)].
+proof.
+proc; auto => &m />; smt( mem_fdom_set mem_rangeset get_setE).
+qed.
+
+local lemma kcoll_bound_ideal &m (A' <: OutsiderCCA.Adversary{-KS,-Oideal}) :
+  Pr[ Game(Oideal(KS), A').main() @ &m : bad_k KS.m] 
+  <= (n^2)%r / 2%r * PK.
+proof.
+have B := K.fcoll_bound<: pkey> pkgen PK _ _ n _ (BDi(A')) &m ().
+- exact: PK_ge0.
+- move => _ _ pk ?. exact: PK_coll.
+- smt(n_gt0).
+suff S : Pr[OutsiderCCA.Game(Oideal(KS), A').main() @ &m : bad_k KS.m] <=
+       Pr[MainRM(BDi(A'), K.RO).distinguish() @ &m : 
+            fcoll pkgen K.RO.m /\ fsize K.RO.m <= n]. 
+apply: (ler_trans _ _ _ S).
+apply: (ler_trans _ _ _ B). smt.
+byequiv (: ={glob A'} ==> _) => //; proc; inline*; wp.
+conseq (_ : _ ==> ={RO.m}) _ (_ : _ ==> fsize RO.m <= n); [ smt() | | by sim].
+call (: fdom RO.m \subset rangeset 1 (n+1)). 
+- proc. inline Oideal(RO).encap. sp. if; 2: by auto. 
+  seq 1 : #post; [by call get_range | by conseq /> ].
+- proc. inline Oideal(RO).decap. sp. if; 2: by auto. 
+  seq 1 : #post; [by call get_range | by conseq /> ].
+- proc. inline Oideal(RO).pkey. sp. if; 2: by auto. 
+  seq 1 : #post; [by call get_range | by conseq /> ].
+auto => />; smt(fdom0 sub0set card_rangeset n_gt0 subset_leq_fcard).
+qed.
+
+local lemma kcoll_bound_real &m (A' <: OutsiderCCA.Adversary{-KS,-Oideal}) :
+  Pr[ Game(Oreal(KS), A').main() @ &m : bad_k KS.m] 
+  <= (n^2)%r / 2%r * PK.
+proof.
+have B := K.fcoll_bound<: pkey> pkgen PK _ _ n _ (BDr(A')) &m ().
+- exact: PK_ge0.
+- move => _ _ pk ?. exact: PK_coll.
+- smt(n_gt0).
+suff S : Pr[OutsiderCCA.Game(Oreal(KS), A').main() @ &m : bad_k KS.m] <=
+       Pr[MainRM(BDr(A'), K.RO).distinguish() @ &m : 
+            fcoll pkgen K.RO.m /\ fsize K.RO.m <= n]. 
+apply: (ler_trans _ _ _ S).
+apply: (ler_trans _ _ _ B). smt.
+byequiv (: ={glob A'} ==> _) => //; proc; inline*; wp.
+conseq (_ : _ ==> ={RO.m}) _ (_ : _ ==> fsize RO.m <= n); [ smt() | | by sim].
+call (: fdom RO.m \subset rangeset 1 (n+1)). 
+- proc. inline Oreal(RO).encap. sp. if; 2: by auto. 
+  seq 1 : #post; [by call get_range | by conseq /> ].
+- proc. inline Oreal(RO).decap. sp. if; 2: by auto. 
+  seq 1 : #post; [by call get_range | by conseq /> ].
+- proc. inline Oreal(RO).pkey. sp. if; 2: by auto. 
+  seq 1 : #post; [by call get_range | by conseq /> ].
+auto => />; smt(fdom0 sub0set card_rangeset n_gt0 subset_leq_fcard).
+qed.
+
+local lemma Oideal_bad &m : 
+  `| Pr [ Game(Oideal(KS),A).main() @ &m : res] - 
+     Pr [ Game(Oideal(KS),A).main() @ &m : res /\ !bad_k KS.m ] | 
+  <= (n^2)%r / 2%r * PK.
+proof.
+apply: ler_trans (kcoll_bound_ideal &m A).
+rewrite Pr[mu_split bad_k KS.m] -RField.addrA /= ger0_norm //; 1: smt(mu_bounded).
+byequiv=> //. conseq (:_ ==> ={res,KS.m}); [smt() | by sim]. 
+qed.
+
+local lemma Oreal_bad &m : 
+  `| Pr [ Game(Oreal(KS),A).main() @ &m : res] - 
+     Pr [ Game(Oreal(KS),A).main() @ &m : res /\ !bad_k KS.m ] | 
+  <= (n^2)%r / 2%r * PK.
+proof.
+apply: ler_trans (kcoll_bound_real &m A).
+rewrite Pr[mu_split bad_k KS.m] -RField.addrA /= ger0_norm //; 1: smt(mu_bounded).
+byequiv=> //. conseq (:_ ==> ={res,KS.m}); [smt() | by sim]. 
+qed.
+
 (* combining everything to get the theorem for Outsider-CCA *)
 module B11 (A : Adversary) : O2.Adversary = O2.B(Bbad(A)).
 
-(* The advantage of A is [n^2 * qc] times the advantage of B11 ...  *)
 lemma theorem11 &m : 
-  `| Pr[ Game(Oreal ,A).main() @ &m : res /\ !bad_k KS.m] - 
-     Pr[ Game(Oideal,A).main() @ &m : res /\ !bad_k KS.m] | 
-= (n^2 * qe)%r * `| Pr[ O2.Game(O2.Oreal ,B11(A)).main() @ &m : res] - 
-                    Pr[ O2.Game(O2.Oideal,B11(A)).main() @ &m : res]|.
-proof. 
+  `| Pr[ Game(Oreal(KS) ,A).main() @ &m : res] - 
+     Pr[ Game(Oideal(KS),A).main() @ &m : res] | 
+<=   (n^2 * qe)%r * `| Pr[ O2.Game(O2.Oreal ,B11(A)).main() @ &m : res] - 
+                       Pr[ O2.Game(O2.Oideal,B11(A)).main() @ &m : res]| 
+  + (n^2)%r * PK.
+proof.
+pose Adv := (_ * qe)%r * `|_ - _|%Real.
+have -> : Adv + (n ^ 2)%r * PK = 
+         ((n^2)%r / 2%r * PK) + (((n ^ 2)%r / 2%r * PK) + Adv) by smt().
+apply: distr_lossL (Oreal_bad &m).
+apply: distr_lossR (Oideal_bad &m).
 have l2 := O2.lemma2 (Bbad(A)) Bbad_ll Bbad_bound &m.
 by rewrite lemma3 B_Bbad_real B_Bbad_ideal l2 /#.
 qed.

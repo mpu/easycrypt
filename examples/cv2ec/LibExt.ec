@@ -2,6 +2,16 @@ require import AllCore List Finite Distr DBool DInterval DList FSet SmtMap.
 
 (* * Preliminaries *)
 
+(* Arithmetic *)
+
+lemma distr_lossL (x' x y r1 r2 : real) :  
+  `| x' - y | <= r2 => `| x - x' | <= r1 => `| x - y | <= r1 + r2. 
+proof. smt(). qed.
+
+lemma distr_lossR (x y y' r1 r2 : real) :  
+  `| x - y' | <= r2 => `| y - y' | <= r1  => `| x - y | <= r1 + r2. 
+proof. smt(). qed.
+
 (* Logic.ec *)
 
 type ('a, 'b) sum = [Left of 'a | Right of 'b].
@@ -24,7 +34,7 @@ proof. by case: b. qed.
 lemma ifF (b : bool) (e1 e2 : 'a) : !b => (if b then e1 else e2) = e2. 
 proof. by case: b. qed. 
 
-(* really useful *)
+(* really useful ? *)
 lemma omap_some (ox : 'a option) (y : 'b) (f : 'a -> 'b) : 
   omap f ox = Some y => exists x, ox = Some x /\ f x = y. 
 proof. by case: ox => //= x <-; exists x. qed.
