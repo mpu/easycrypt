@@ -1,5 +1,5 @@
 (* -------------------------------------------------------------------- *)
-require import AllCore List FSet Distr.
+require import AllCore List FSet SmtMap Distr.
 require import Ring Number StdRing StdOrder.
 (*---*) import RField RealOrder.
 
@@ -87,3 +87,37 @@ proof.
   rewrite cardE -(perm_eq_size (undup l)) 1:oflistK //.
   by rewrite ler_wpmul2r // le_fromint size_undup.
 qed.
+
+(* This is more general than the mu_mem lemmas for fset *)
+lemma mu_mem_le_fsize (m : ('a, 'b) fmap) (d : 'c distr) p bd :
+  (forall u, u \in m => mu d (p u) <= bd) =>
+  mu d (fun r => exists u, u \in m /\ p u r) <= (fsize m)%r * bd.
+proof.
+elim/fmapW : m; first by rewrite mu0_false; smt(mem_empty fsize_empty).
+move => m k v fresh_k IH H.
+rewrite (@mu_eq _ _ (predU (p k)
+  (fun (r : 'c) => exists (u : 'a), (u \in m) /\ p u r))); 1: smt(mem_set).
+rewrite mu_or; apply ler_naddr; 1: smt(mu_bounded).
+by rewrite fsize_set -mem_fdom fresh_k fromintD mulrDl; smt(mem_set).
+qed.
+
+(* this would be the corresponding generalization for fset *)
+lemma mu_mem_le_gen (s:'a fset) (d:'b distr) p (bd:real) : 
+  (forall (x : 'a), mem s x => mu d (p x) <= bd) =>
+  mu d (fun r => exists x, x \in s /\ p x r) <= (card s)%r * bd.
+proof.
+elim/fset_ind: s; first by rewrite mu0_false; smt(in_fset0 fcards0).
+move => x s x_fresh IH H. 
+rewrite (@mu_eq _ _ (predU (p x)
+  (fun (r : 'b) => exists (x : 'a), (x \in s) /\ p x r))); 1: smt(in_fsetU1).
+rewrite mu_or; apply ler_naddr; 1: smt(mu_bounded).
+by rewrite fcardU1 x_fresh fromintD mulrDl /b2i /=; smt(in_fsetU1).
+qed.
+
+lemma mu_mem_le (s:'a fset): forall (d:'a distr) (bd:real),
+  (forall (x : 'a), mem s x => mu d (pred1 x) <= bd) =>
+  mu d (mem s) <= (card s)%r * bd.
+proof. 
+by move => d bd; have X := mu_mem_le_gen s d pred1 bd; smt(mu_eq).
+abort.
+
